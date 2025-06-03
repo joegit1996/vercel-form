@@ -9,16 +9,43 @@ backend/
 ├── cmd/                 # Application entrypoints
 │   └── main.go         # Main application entry point
 ├── internal/           # Private application code
+│   └── config/         # Configuration management
 ├── pkg/                # Public packages (reusable libraries)
 ├── configs/            # Configuration files and templates
 ├── api/                # API definitions (OpenAPI/Swagger specs)
 ├── scripts/            # Build and utility scripts
 ├── docs/               # Documentation
 ├── test/               # External test data and utilities
+├── migrations/         # Database migration files
 ├── go.mod              # Go module definition
 ├── go.sum              # Go module checksums
+├── .env.example        # Environment variables template
 └── README.md           # This file
 ```
+
+## 🗃️ Database Setup
+
+### PostgreSQL Database
+The project uses PostgreSQL as the database. A database instance has been created and configured with the following environment variables:
+
+- `DATABASE_URL` - Full database connection string
+- `PGHOST` - Database host
+- `PGPORT` - Database port
+- `PGUSER` - Database username
+- `PGPASSWORD` - Database password
+- `PGDATABASE` - Database name
+
+### Configuration
+Database configuration is managed through environment variables. Copy `.env.example` to `.env` and configure your database settings:
+
+```bash
+cp .env.example .env
+```
+
+The database configuration is loaded automatically from environment variables using the config package.
+
+### Migrations
+Database migration files will be stored in the `migrations/` directory. This directory is ready for future schema changes and migrations.
 
 ## 🚀 How to Run
 
@@ -37,27 +64,14 @@ go run cmd/main.go
 
 ## 📡 Available Endpoints
 
-- `GET /` - Root endpoint with status message
 - `GET /health` - Health check endpoint
 
-## 🏗️ How to Extend
+## 🔧 Configuration
 
-1. **Add Business Logic**: Place domain logic in the `internal/` directory
-2. **Add Public Packages**: Create reusable packages in `pkg/`
-3. **Add Configuration**: Place config files in `configs/`
-4. **Add API Definitions**: Place OpenAPI/Swagger specs in `api/`
-5. **Add Documentation**: Place additional docs in `docs/`
-6. **Add Scripts**: Place build/test scripts in `scripts/`
+The application uses a configuration system that loads settings from environment variables:
 
-## 📝 Architecture Notes
+- Database connection settings
+- Server host and port configuration
+- Environment mode (development/production)
 
-This skeleton follows hexagonal (ports and adapters) architecture principles:
-- Clear separation of concerns
-- Dependency inversion
-- Testable and maintainable code structure
-- Ready for clean architecture implementation
-
-## 🔧 Next Steps
-
-The skeleton is ready for development. Add your business logic, configure dependencies, and implement your application features following Go best practices.
-
+Configuration is managed through the `internal/config` package which provides type-safe access to all configuration values.
