@@ -282,6 +282,110 @@ func submitFormHandler(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(response)
 }
 
+// Update form
+func updateFormHandler(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "PUT" {
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }
+
+        // Extract form ID from URL path
+        path := strings.TrimPrefix(r.URL.Path, "/api/forms/")
+        formID, err := strconv.Atoi(path)
+        if err != nil {
+                http.Error(w, "Invalid form ID", http.StatusBadRequest)
+                return
+        }
+
+        var formData struct {
+                Title            string      `json:"title"`
+                Description      string      `json:"description"`
+                Fields           []FormField `json:"fields"`
+                SubmitButtonText string      `json:"submitButtonText"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }
+
+        fieldsJSON, err := json.Marshal(formData.Fields)
+        if err != nil {
+                http.Error(w, "Error encoding fields", http.StatusInternalServerError)
+                return
+        }
+
+        var form Form
+        err = db.QueryRow(`
+                UPDATE forms 
+                SET title = $1, description = $2, fields = $3, submit_button_text = $4, updated_at = NOW()
+                WHERE id = $5 AND is_active = true
+                RETURNING id, title, description, fields, submit_button_text, is_active, created_at, updated_at
+        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formID).Scan(
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.IsActive,
+                &form.CreatedAt, &form.UpdatedAt,
+        )
+
+        if err == sql.ErrNoRows {
+                http.Error(w, "Form not found", http.StatusNotFound)
+                return
+        } else if err != nil {
+                http.Error(w, "Error updating form", http.StatusInternalServerError)
+                return
+        }
+
+        if err := json.Unmarshal(fieldsJSON, &form.Fields); err != nil {
+                http.Error(w, "Error parsing fields", http.StatusInternalServerError)
+                return
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(form)
+}
+
+// Delete form
+func deleteFormHandler(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "DELETE" {
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }
+
+        // Extract form ID from URL path
+        path := strings.TrimPrefix(r.URL.Path, "/api/forms/")
+        formID, err := strconv.Atoi(path)
+        if err != nil {
+                http.Error(w, "Invalid form ID", http.StatusBadRequest)
+                return
+        }
+
+        // Soft delete by setting is_active to false
+        result, err := db.Exec(`
+                UPDATE forms 
+                SET is_active = false, updated_at = NOW()
+                WHERE id = $1 AND is_active = true
+        `, formID)
+
+        if err != nil {
+                http.Error(w, "Error deleting form", http.StatusInternalServerError)
+                return
+        }
+
+        rowsAffected, err := result.RowsAffected()
+        if err != nil {
+                http.Error(w, "Error checking deletion result", http.StatusInternalServerError)
+                return
+        }
+
+        if rowsAffected == 0 {
+                http.Error(w, "Form not found", http.StatusNotFound)
+                return
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        fmt.Fprintf(w, `{"message": "Form deleted successfully"}`)
+}
+
 // Get form responses
 func getFormResponsesHandler(w http.ResponseWriter, r *http.Request) {
         if r.Method != "GET" {
@@ -367,7 +471,15 @@ func setupRoutes() {
                 if strings.Contains(path, "/responses") {
                         getFormResponsesHandler(w, r)
                 } else {
-                        getFormHandler(w, r)
+                        if r.Method == "GET" {
+                                getFormHandler(w, r)
+                        } else if r.Method == "PUT" {
+                                updateFormHandler(w, r)
+                        } else if r.Method == "DELETE" {
+                                deleteFormHandler(w, r)
+                        } else {
+                                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                        }
                 }
         })
 
@@ -398,11 +510,13 @@ func main() {
         // Start the HTTP server
         fmt.Printf("Server starting on port %s...\n", port)
         fmt.Printf("API Documentation:\n")
-        fmt.Printf("  POST /api/forms - Create a new form\n")
-        fmt.Printf("  GET  /api/forms - Get all forms\n")
-        fmt.Printf("  GET  /api/forms/{id} - Get specific form\n")
-        fmt.Printf("  POST /api/submit - Submit form response\n")
-        fmt.Printf("  GET  /api/forms/{id}/responses - Get form responses\n")
+        fmt.Printf("  POST   /api/forms - Create a new form\n")
+        fmt.Printf("  GET    /api/forms - Get all forms\n")
+        fmt.Printf("  GET    /api/forms/{id} - Get specific form\n")
+        fmt.Printf("  PUT    /api/forms/{id} - Update existing form\n")
+        fmt.Printf("  DELETE /api/forms/{id} - Delete form (soft delete)\n")
+        fmt.Printf("  POST   /api/submit - Submit form response\n")
+        fmt.Printf("  GET    /api/forms/{id}/responses - Get form responses\n")
         
         if err := http.ListenAndServe("0.0.0.0:"+port, handler); err != nil {
                 log.Fatalf("Server failed to start: %v", err)

@@ -389,7 +389,7 @@ export const FormBuilder: React.FC = () => {
                   loading={isSubmitting}
                   className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-8"
                 >
-                  Save Form
+                  {isEditing ? 'Update Form' : 'Save Form'}
                 </Button>
                 <Button
                   variant="outline"
