@@ -1,7 +1,7 @@
 import { Form, FormDefinition, FormResponse, FormSubmission } from '../types/form';
 
-// Use the backend URL based on current window location
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+// Use relative path to proxy through frontend server
+const API_BASE_URL = '/api';
 
 class ApiService {
   private async request<T>(
