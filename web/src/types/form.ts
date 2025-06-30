@@ -31,6 +31,7 @@ export interface Form {
   title: string;
   description?: string;
   fields: FormField[];
+  submitButtonText?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +49,7 @@ export interface FormDefinition {
   title: string;
   description?: string;
   fields: FormField[];
+  submitButtonText?: string;
 }
 
 export interface FormSubmission {

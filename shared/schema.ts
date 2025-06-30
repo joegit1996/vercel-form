@@ -7,6 +7,7 @@ export const forms = pgTable('forms', {
   title: text('title').notNull(),
   description: text('description'),
   fields: jsonb('fields').notNull(), // JSON array of field definitions
+  submitButtonText: text('submit_button_text').default('Submit'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
