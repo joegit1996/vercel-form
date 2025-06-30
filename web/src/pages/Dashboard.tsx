@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Eye, ExternalLink, Calendar, FileText, MessageSquare, Copy, Check } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button/Button';
 import { apiService } from '../services/api';
 import { Form, FormResponse } from '../types/form';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [forms, setForms] = useState<Form[]>([]);
-  const [selectedForm, setSelectedForm] = useState<Form | null>(null);
-  const [responses, setResponses] = useState<FormResponse[]>([]);
+  const [formResponses, setFormResponses] = useState<Record<number, FormResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingResponses, setLoadingResponses] = useState(false);
-  const [copiedFormId, setCopiedFormId] = useState<number | null>(null);
+  const [deletingFormId, setDeletingFormId] = useState<number | null>(null);
 
   useEffect(() => {
     loadForms();
@@ -21,11 +19,12 @@ export const Dashboard: React.FC = () => {
   const loadForms = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await apiService.getForms();
       setForms(data);
     } catch (err) {
       setError('Failed to load forms');
-      console.error(err);
+      console.error('Error loading forms:', err);
     } finally {
       setLoading(false);
     }
@@ -33,57 +32,65 @@ export const Dashboard: React.FC = () => {
 
   const loadResponses = async (form: Form) => {
     try {
-      setLoadingResponses(true);
-      const data = await apiService.getFormResponses(form.id);
-      setResponses(data);
-      setSelectedForm(form);
+      const responses = await apiService.getFormResponses(form.id);
+      setFormResponses(prev => ({ ...prev, [form.id]: responses }));
     } catch (err) {
-      console.error('Failed to load responses:', err);
-    } finally {
-      setLoadingResponses(false);
+      console.error('Error loading responses:', err);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleEdit = (formId: number) => {
+    navigate(`/form-builder/${formId}`);
   };
 
-  const getPublicUrl = (formId: number) => {
-    return `${window.location.origin}/form/${formId}`;
+  const handleDelete = async (formId: number) => {
+    if (!window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingFormId(formId);
+      await apiService.deleteForm(formId);
+      setForms(forms.filter(form => form.id !== formId));
+      
+      // Remove responses from state
+      setFormResponses(prev => {
+        const newState = { ...prev };
+        delete newState[formId];
+        return newState;
+      });
+    } catch (err) {
+      setError('Failed to delete form');
+      console.error('Error deleting form:', err);
+    } finally {
+      setDeletingFormId(null);
+    }
   };
 
-  const copyToClipboard = (formId: number) => {
-    const url = getPublicUrl(formId);
-    navigator.clipboard.writeText(url);
-    setCopiedFormId(formId);
-    setTimeout(() => setCopiedFormId(null), 2000);
+  const copyFormLink = async (formId: number) => {
+    const url = `${window.location.origin}/form/${formId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      // Simple feedback without external toast library
+      const button = document.getElementById(`copy-btn-${formId}`);
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading forms...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{error}</p>
-          <Button onClick={loadForms} className="mt-4">
-            Try Again
-          </Button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading forms...</p>
         </div>
       </div>
     );
@@ -91,174 +98,170 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-6xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Form Dashboard</h1>
-          <p className="text-gray-600 text-lg">Manage your forms and view responses</p>
-        </div>
-
-        {/* Create New Form Button */}
-        <div className="text-center mb-12">
+          <p className="text-gray-600 text-lg mb-8">Manage your forms and view submissions</p>
+          
           <Link to="/form-builder">
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium border-0"
-            >
-              <Plus className="h-5 w-5 mr-2" />
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-8">
+              <span className="mr-2">+</span>
               Create New Form
             </Button>
           </Link>
         </div>
 
+        {error && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-600 font-medium">{error}</p>
+            <Button
+              variant="outline"
+              onClick={loadForms}
+              className="mt-2 border-red-300 text-red-700"
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
         {forms.length === 0 ? (
           <div className="text-center py-16">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 max-w-md mx-auto">
-              <FileText className="mx-auto h-16 w-16 text-gray-300 mb-6" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No forms yet</h3>
-              <p className="text-gray-600 mb-6">Get started by creating your first form.</p>
-              <Link to="/form-builder">
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium border-0"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create New Form
-                </Button>
-              </Link>
+            <div className="w-16 h-16 mx-auto mb-6 text-gray-300">
+              <svg fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
             </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No forms yet</h3>
+            <p className="text-gray-600 mb-6">Create your first form to get started</p>
+            <Link to="/form-builder">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+                <span className="mr-2">+</span>
+                Create Your First Form
+              </Button>
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Forms List */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Your Forms</h2>
-              <div className="space-y-6">
-                {forms.map((form) => (
-                  <div
-                    key={form.id}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200"
-                  >
-                    <div className="mb-4">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{form.title}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {forms.map((form) => (
+              <div key={form.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{form.title}</h3>
                       {form.description && (
-                        <p className="text-gray-600 leading-relaxed">{form.description}</p>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{form.description}</p>
                       )}
                     </div>
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center ml-3">
+                      <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center text-sm text-gray-500 mb-4">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    </svg>
+                    Created {new Date(form.createdAt).toLocaleDateString()}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Fields:</span>
+                      <span className="text-sm font-medium text-gray-900">{form.fields.length}</span>
+                    </div>
                     
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <div className="flex items-center space-x-4">
-                        <span className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {formatDate(form.createdAt)}
-                        </span>
-                        <span>{form.fields.length} fields</span>
-                      </div>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                        form.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {form.isActive ? 'Active' : 'Inactive'}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Status:</span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                        Active
                       </span>
                     </div>
-                    
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">Public URL:</p>
-                      <p className="text-sm font-mono text-gray-700 break-all">{getPublicUrl(form.id)}</p>
-                    </div>
+                  </div>
+                </div>
 
-                    <div className="flex space-x-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(form.id)}
-                        className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
-                      >
-                        {copiedFormId === form.id ? (
-                          <Check className="h-4 w-4 mr-2" />
-                        ) : (
-                          <Copy className="h-4 w-4 mr-2" />
-                        )}
-                        {copiedFormId === form.id ? 'Copied!' : 'Copy Link'}
-                      </Button>
+                <div className="border-t border-gray-100 p-4 bg-gray-50">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyFormLink(form.id)}
+                      id={`copy-btn-${form.id}`}
+                      className="border-gray-300 text-gray-700 text-xs"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                      </svg>
+                      Copy Link
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/form/${form.id}`, '_blank')}
+                      className="border-gray-300 text-gray-700 text-xs"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      Preview
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(form.id)}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                      </svg>
+                      Edit
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(form.id)}
+                      loading={deletingFormId === form.id}
+                      className="border-red-300 text-red-700 hover:bg-red-50 text-xs"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                      </svg>
+                      Delete
+                    </Button>
+                  </div>
+
+                  {formResponses[form.id] && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => loadResponses(form)}
-                        className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className="w-full border-gray-300 text-gray-700 text-xs"
                       >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Responses
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M21 6h-2l-1-2H6L5 6H3c-.55 0-1 .45-1 1s.45 1 1 1h1v11c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8h1c.55 0 1-.45 1-1s-.45-1-1-1z"/>
+                        </svg>
+                        View {formResponses[form.id].length} Response{formResponses[form.id].length !== 1 ? 's' : ''}
                       </Button>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
-            </div>
-
-            {/* Responses Panel */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Form Responses</h2>
-              
-              {!selectedForm ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                  <MessageSquare className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-                  <p className="text-gray-600">
-                    Select a form to view its responses
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                  <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                      {selectedForm.title}
-                    </h3>
-                    <p className="text-gray-600">
-                      {responses.length} response{responses.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  
-                  <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                    {loadingResponses ? (
-                      <div className="p-8 text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Loading responses...</p>
-                      </div>
-                    ) : responses.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <p className="text-gray-600">No responses yet</p>
-                      </div>
-                    ) : (
-                      responses.map((response) => (
-                        <div key={response.id} className="p-6">
-                          <div className="flex justify-between items-start mb-3">
-                            <span className="font-semibold text-gray-900">
-                              {response.phoneNumber}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {formatDate(response.submittedAt)}
-                            </span>
-                          </div>
-                          <div className="space-y-2">
-                            {Object.entries(response.responseData).map(([fieldId, value]) => {
-                              const field = selectedForm.fields.find(f => f.id === fieldId);
-                              return (
-                                <div key={fieldId} className="text-sm">
-                                  <span className="font-medium text-gray-700">
-                                    {field?.label || fieldId}:
-                                  </span>
-                                  <span className="ml-2 text-gray-600">
-                                    {Array.isArray(value) ? value.join(', ') : String(value)}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         )}
       </div>

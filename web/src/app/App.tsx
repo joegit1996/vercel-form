@@ -11,9 +11,9 @@ function App() {
       <Router>
         <div className="App min-h-screen bg-gray-50">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/builder" element={<FormBuilder />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/form-builder" element={<FormBuilder />} />
+            <Route path="/form-builder/:formId" element={<FormBuilder />} />
             <Route path="/form/:formId" element={<PublicForm />} />
           </Routes>
         </div>

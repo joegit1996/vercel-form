@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button/Button';
 import { apiService } from '../services/api';
 import { FormField, FieldType, FormDefinition } from '../types/form';
@@ -20,13 +20,40 @@ const FIELD_TYPES: { value: FieldType; label: string; description: string }[] = 
 
 export const FormBuilder: React.FC = () => {
   const navigate = useNavigate();
+  const { formId } = useParams<{ formId: string }>();
+  const isEditing = !!formId;
+  
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [submitButtonText, setSubmitButtonText] = useState('');
   const [fields, setFields] = useState<FormField[]>([]);
   const [editingField, setEditingField] = useState<FormField | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isEditing && formId) {
+      loadForm(parseInt(formId));
+    }
+  }, [formId, isEditing]);
+
+  const loadForm = async (id: number) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const form = await apiService.getForm(id);
+      setFormTitle(form.title);
+      setFormDescription(form.description || '');
+      setSubmitButtonText(form.submitButtonText || '');
+      setFields(form.fields);
+    } catch (err) {
+      setError('Failed to load form');
+      console.error('Error loading form:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const generateFieldId = () => {
     return `field_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
@@ -86,15 +113,20 @@ export const FormBuilder: React.FC = () => {
 
       const formData: FormDefinition = {
         title: formTitle.trim(),
-        description: formDescription.trim(),
+        description: formDescription.trim() || undefined,
         fields,
         submitButtonText: submitButtonText.trim() || undefined
       };
 
-      await apiService.createForm(formData);
+      if (isEditing && formId) {
+        await apiService.updateForm(parseInt(formId), formData);
+      } else {
+        await apiService.createForm(formData);
+      }
+      
       navigate('/');
     } catch (err) {
-      setError('Failed to save form. Please try again.');
+      setError(`Failed to ${isEditing ? 'update' : 'create'} form. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -213,8 +245,12 @@ export const FormBuilder: React.FC = () => {
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Create New Form</h1>
-          <p className="text-gray-600 text-lg">Build your custom form with various field types</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            {isEditing ? 'Edit Form' : 'Create New Form'}
+          </h1>
+          <p className="text-gray-600 text-lg">
+            {isEditing ? 'Update your form with new fields and settings' : 'Build your custom form with various field types'}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

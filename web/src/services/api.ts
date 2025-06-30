@@ -65,6 +65,19 @@ class ApiService {
   async getFormResponses(formId: number): Promise<FormResponse[]> {
     return this.request<FormResponse[]>(`/forms/${formId}/responses`);
   }
+
+  async updateForm(formId: number, formData: FormDefinition): Promise<Form> {
+    return this.request<Form>(`/forms/${formId}`, {
+      method: 'PUT',
+      body: JSON.stringify(formData)
+    });
+  }
+
+  async deleteForm(formId: number): Promise<void> {
+    await this.request<void>(`/forms/${formId}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const apiService = new ApiService();
