@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button/Button';
-import { apiService } from '../services/api';
+import { apiService, PaginatedResponse } from '../services/api';
 import { Form, FormResponse } from '../types/form';
 
 export const Dashboard: React.FC = () => {
@@ -11,17 +11,25 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingFormId, setDeletingFormId] = useState<number | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     loadForms();
-  }, []);
+  }, [currentPage]);
 
   const loadForms = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getForms();
-      setForms(data);
+      const data = await apiService.getForms(currentPage, pageSize);
+      setForms(data.data);
+      setTotalPages(data.totalPages);
+      setTotalCount(data.totalCount);
     } catch (err) {
       setError('Failed to load forms');
       console.error('Error loading forms:', err);
@@ -51,7 +59,9 @@ export const Dashboard: React.FC = () => {
     try {
       setDeletingFormId(formId);
       await apiService.deleteForm(formId);
-      setForms(forms.filter(form => form.id !== formId));
+      
+      // Reload forms to get updated pagination
+      await loadForms();
       
       // Remove responses from state
       setFormResponses(prev => {

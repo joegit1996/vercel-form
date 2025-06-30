@@ -1,5 +1,13 @@
 import { Form, FormDefinition, FormResponse, FormSubmission } from '../types/form';
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // Use relative path to proxy through frontend server
 const API_BASE_URL = '/api';
 
@@ -46,8 +54,8 @@ class ApiService {
     });
   }
 
-  async getForms(): Promise<Form[]> {
-    return this.request<Form[]>('/forms');
+  async getForms(page: number = 1, pageSize: number = 5): Promise<PaginatedResponse<Form>> {
+    return this.request<PaginatedResponse<Form>>(`/forms?page=${page}&pageSize=${pageSize}`);
   }
 
   async getForm(id: number): Promise<Form> {

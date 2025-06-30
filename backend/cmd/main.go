@@ -141,18 +141,63 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(form)
 }
 
-// Get all forms
+// PaginatedResponse represents a paginated API response
+type PaginatedResponse struct {
+        Data       []Form `json:"data"`
+        TotalCount int    `json:"totalCount"`
+        Page       int    `json:"page"`
+        PageSize   int    `json:"pageSize"`
+        TotalPages int    `json:"totalPages"`
+}
+
+// Get all forms with pagination
 func getFormsHandler(w http.ResponseWriter, r *http.Request) {
         if r.Method != "GET" {
                 http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
                 return
         }
 
+        // Parse pagination parameters
+        pageStr := r.URL.Query().Get("page")
+        pageSizeStr := r.URL.Query().Get("pageSize")
+        
+        page := 1
+        pageSize := 5 // Default page size
+        
+        if pageStr != "" {
+                if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+                        page = p
+                }
+        }
+        
+        if pageSizeStr != "" {
+                if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 50 {
+                        pageSize = ps
+                }
+        }
+
+        // Get total count for pagination
+        var totalCount int
+        err := db.QueryRow("SELECT COUNT(*) FROM forms WHERE is_active = true").Scan(&totalCount)
+        if err != nil {
+                http.Error(w, "Error counting forms", http.StatusInternalServerError)
+                return
+        }
+
+        // Calculate total pages
+        totalPages := (totalCount + pageSize - 1) / pageSize
+
+        // Calculate offset
+        offset := (page - 1) * pageSize
+
+        // Query forms with pagination
         rows, err := db.Query(`
                 SELECT id, title, description, fields, submit_button_text, is_active, created_at, updated_at
                 FROM forms
+                WHERE is_active = true
                 ORDER BY created_at DESC
-        `)
+                LIMIT $1 OFFSET $2
+        `, pageSize, offset)
         if err != nil {
                 http.Error(w, "Error fetching forms", http.StatusInternalServerError)
                 return
@@ -181,8 +226,17 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 forms = append(forms, form)
         }
 
+        // Create paginated response
+        response := PaginatedResponse{
+                Data:       forms,
+                TotalCount: totalCount,
+                Page:       page,
+                PageSize:   pageSize,
+                TotalPages: totalPages,
+        }
+
         w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(forms)
+        json.NewEncoder(w).Encode(response)
 }
 
 // Get a specific form by ID
