@@ -1,6 +1,7 @@
 import { Form, FormDefinition, FormResponse, FormSubmission } from '../types/form';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Use the backend URL based on current window location
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 class ApiService {
   private async request<T>(
@@ -9,20 +10,32 @@ class ApiService {
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    try {
+      console.log('Making API request to:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} - ${errorText}`);
+      console.log('API response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('API response data:', data);
+      return data;
+    } catch (error) {
+      console.error('Network error:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   // Form management
