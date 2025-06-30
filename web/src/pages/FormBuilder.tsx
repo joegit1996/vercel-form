@@ -1,20 +1,40 @@
 import React, { useState } from 'react';
-import { Plus, Save, Eye, Trash2, GripVertical, Sparkles, Settings } from 'lucide-react';
+import { Plus, Save, Eye, Trash2, GripVertical, Sparkles, Settings, Search, Type, Hash, Calendar, Clock, CheckSquare, Circle, ChevronDown, Upload, Lock, Mail, FileText } from 'lucide-react';
 import { FormField, FieldType, FormDefinition } from '../types/form';
 import { apiService } from '../services/api';
 
-const FIELD_TYPES: { value: FieldType; label: string; description: string; icon: string }[] = [
-  { value: 'text', label: 'Text', description: 'Single line text input', icon: '📝' },
-  { value: 'textarea', label: 'Textarea', description: 'Multi-line text input', icon: '📄' },
-  { value: 'password', label: 'Password', description: 'Password input field', icon: '🔒' },
-  { value: 'email', label: 'Email', description: 'Email address field', icon: '📧' },
-  { value: 'number', label: 'Number', description: 'Numeric input field', icon: '🔢' },
-  { value: 'date', label: 'Date', description: 'Date picker', icon: '📅' },
-  { value: 'time', label: 'Time', description: 'Time picker', icon: '⏰' },
-  { value: 'checkbox', label: 'Checkbox', description: 'Multiple choice checkboxes', icon: '☑️' },
-  { value: 'radio', label: 'Radio', description: 'Single choice radio buttons', icon: '🔘' },
-  { value: 'select', label: 'Select', description: 'Dropdown selection', icon: '📋' },
-  { value: 'file', label: 'File Upload', description: 'File upload field', icon: '📎' },
+const FIELD_TYPES = [
+  {
+    category: 'Text Fields',
+    fields: [
+      { value: 'text' as FieldType, label: 'Text', description: 'Single line text input', icon: Type, color: 'text-blue-600' },
+      { value: 'textarea' as FieldType, label: 'Textarea', description: 'Multi-line text input', icon: FileText, color: 'text-blue-600' },
+      { value: 'password' as FieldType, label: 'Password', description: 'Password input field', icon: Lock, color: 'text-red-600' },
+      { value: 'email' as FieldType, label: 'Email', description: 'Email address field', icon: Mail, color: 'text-green-600' },
+    ]
+  },
+  {
+    category: 'Number & Date',
+    fields: [
+      { value: 'number' as FieldType, label: 'Number', description: 'Numeric input field', icon: Hash, color: 'text-purple-600' },
+      { value: 'date' as FieldType, label: 'Date', description: 'Date picker', icon: Calendar, color: 'text-orange-600' },
+      { value: 'time' as FieldType, label: 'Time', description: 'Time picker', icon: Clock, color: 'text-orange-600' },
+    ]
+  },
+  {
+    category: 'Selection Fields',
+    fields: [
+      { value: 'checkbox' as FieldType, label: 'Checkbox', description: 'Multiple choice checkboxes', icon: CheckSquare, color: 'text-indigo-600' },
+      { value: 'radio' as FieldType, label: 'Radio', description: 'Single choice radio buttons', icon: Circle, color: 'text-indigo-600' },
+      { value: 'select' as FieldType, label: 'Select', description: 'Dropdown selection', icon: ChevronDown, color: 'text-indigo-600' },
+    ]
+  },
+  {
+    category: 'Special Fields',
+    fields: [
+      { value: 'file' as FieldType, label: 'File Upload', description: 'File upload field', icon: Upload, color: 'text-gray-600' },
+    ]
+  }
 ];
 
 export const FormBuilder: React.FC = () => {
@@ -27,14 +47,28 @@ export const FormBuilder: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [savedFormId, setSavedFormId] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showFieldSelector, setShowFieldSelector] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const generateFieldId = () => `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+  const getAllFields = () => FIELD_TYPES.flatMap(category => category.fields);
+
+  const getFilteredFields = () => {
+    const allFields = getAllFields();
+    if (!searchTerm) return allFields;
+    return allFields.filter(field => 
+      field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      field.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
   const addField = (type: FieldType) => {
+    const fieldDefinition = getAllFields().find(field => field.value === type);
     const newField: FormField = {
       id: generateFieldId(),
       type,
-      label: `${FIELD_TYPES.find(ft => ft.value === type)?.label} Field`,
+      label: `${fieldDefinition?.label} Field`,
       placeholder: '',
       required: false,
       options: ['radio', 'select', 'checkbox'].includes(type) ? ['Option 1'] : undefined,
@@ -44,6 +78,8 @@ export const FormBuilder: React.FC = () => {
       ...prev,
       fields: [...prev.fields, newField],
     }));
+    setShowFieldSelector(false);
+    setSearchTerm('');
   };
 
   const updateField = (fieldId: string, updates: Partial<FormField>) => {
