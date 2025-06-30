@@ -27,13 +27,14 @@ type FormField struct {
 
 // Form represents a form definition
 type Form struct {
-        ID          int         `json:"id"`
-        Title       string      `json:"title"`
-        Description string      `json:"description,omitempty"`
-        Fields      []FormField `json:"fields"`
-        IsActive    bool        `json:"isActive"`
-        CreatedAt   time.Time   `json:"createdAt"`
-        UpdatedAt   time.Time   `json:"updatedAt"`
+        ID               int         `json:"id"`
+        Title            string      `json:"title"`
+        Description      string      `json:"description,omitempty"`
+        Fields           []FormField `json:"fields"`
+        SubmitButtonText string      `json:"submitButtonText,omitempty"`
+        IsActive         bool        `json:"isActive"`
+        CreatedAt        time.Time   `json:"createdAt"`
+        UpdatedAt        time.Time   `json:"updatedAt"`
 }
 
 // FormResponse represents a form submission
@@ -99,9 +100,10 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         var formData struct {
-                Title       string      `json:"title"`
-                Description string      `json:"description"`
-                Fields      []FormField `json:"fields"`
+                Title            string      `json:"title"`
+                Description      string      `json:"description"`
+                Fields           []FormField `json:"fields"`
+                SubmitButtonText string      `json:"submitButtonText"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
@@ -117,11 +119,11 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
 
         var form Form
         err = db.QueryRow(`
-                INSERT INTO forms (title, description, fields, is_active, created_at, updated_at)
-                VALUES ($1, $2, $3, true, NOW(), NOW())
-                RETURNING id, title, description, fields, is_active, created_at, updated_at
-        `, formData.Title, formData.Description, fieldsJSON).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.IsActive,
+                INSERT INTO forms (title, description, fields, submit_button_text, is_active, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, true, NOW(), NOW())
+                RETURNING id, title, description, fields, submit_button_text, is_active, created_at, updated_at
+        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText).Scan(
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.IsActive,
                 &form.CreatedAt, &form.UpdatedAt,
         )
 
@@ -147,7 +149,7 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         rows, err := db.Query(`
-                SELECT id, title, description, fields, is_active, created_at, updated_at
+                SELECT id, title, description, fields, submit_button_text, is_active, created_at, updated_at
                 FROM forms
                 ORDER BY created_at DESC
         `)
@@ -163,7 +165,7 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 var fieldsJSON []byte
 
                 err := rows.Scan(
-                        &form.ID, &form.Title, &form.Description, &fieldsJSON,
+                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText,
                         &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
                 )
                 if err != nil {
@@ -202,11 +204,11 @@ func getFormHandler(w http.ResponseWriter, r *http.Request) {
         var fieldsJSON []byte
 
         err = db.QueryRow(`
-                SELECT id, title, description, fields, is_active, created_at, updated_at
+                SELECT id, title, description, fields, submit_button_text, is_active, created_at, updated_at
                 FROM forms
                 WHERE id = $1 AND is_active = true
         `, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON,
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText,
                 &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
 

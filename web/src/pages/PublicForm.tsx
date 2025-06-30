@@ -311,7 +311,7 @@ export const PublicForm: React.FC = () => {
                 className="w-full"
                 size="lg"
               >
-                Submit Form
+                {form.submitButtonText || 'Submit'}
               </Button>
             </div>
           </div>
