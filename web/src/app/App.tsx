@@ -12,6 +12,7 @@ function App() {
         <div className="App min-h-screen bg-gray-50">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/form-builder" element={<FormBuilder />} />
             <Route path="/form-builder/:formId" element={<FormBuilder />} />
             <Route path="/form/:formId" element={<PublicForm />} />
