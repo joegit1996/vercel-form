@@ -32,6 +32,7 @@ type Form struct {
         Description      string      `json:"description,omitempty"`
         Fields           []FormField `json:"fields"`
         SubmitButtonText string      `json:"submitButtonText,omitempty"`
+        HeroImageUrl     string      `json:"heroImageUrl,omitempty"`
         IsActive         bool        `json:"isActive"`
         CreatedAt        time.Time   `json:"createdAt"`
         UpdatedAt        time.Time   `json:"updatedAt"`
@@ -104,6 +105,7 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
                 Description      string      `json:"description"`
                 Fields           []FormField `json:"fields"`
                 SubmitButtonText string      `json:"submitButtonText"`
+                HeroImageUrl     string      `json:"heroImageUrl"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
@@ -119,11 +121,11 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
 
         var form Form
         err = db.QueryRow(`
-                INSERT INTO forms (title, description, fields, submit_button_text, is_active, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, true, NOW(), NOW())
-                RETURNING id, title, description, fields, submit_button_text, is_active, created_at, updated_at
-        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.IsActive,
+                INSERT INTO forms (title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+                RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
+        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl).Scan(
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl, &form.IsActive,
                 &form.CreatedAt, &form.UpdatedAt,
         )
 
@@ -192,7 +194,7 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
 
         // Query forms with pagination
         rows, err := db.Query(`
-                SELECT id, title, description, fields, submit_button_text, is_active, created_at, updated_at
+                SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
                 FROM forms
                 WHERE is_active = true
                 ORDER BY created_at DESC
@@ -210,7 +212,7 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 var fieldsJSON []byte
 
                 err := rows.Scan(
-                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText,
+                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl,
                         &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
                 )
                 if err != nil {
@@ -258,11 +260,11 @@ func getFormHandler(w http.ResponseWriter, r *http.Request) {
         var fieldsJSON []byte
 
         err = db.QueryRow(`
-                SELECT id, title, description, fields, submit_button_text, is_active, created_at, updated_at
+                SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
                 FROM forms
                 WHERE id = $1 AND is_active = true
         `, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText,
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl,
                 &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
 
@@ -356,6 +358,7 @@ func updateFormHandler(w http.ResponseWriter, r *http.Request) {
                 Description      string      `json:"description"`
                 Fields           []FormField `json:"fields"`
                 SubmitButtonText string      `json:"submitButtonText"`
+                HeroImageUrl     string      `json:"heroImageUrl"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
@@ -372,11 +375,11 @@ func updateFormHandler(w http.ResponseWriter, r *http.Request) {
         var form Form
         err = db.QueryRow(`
                 UPDATE forms 
-                SET title = $1, description = $2, fields = $3, submit_button_text = $4, updated_at = NOW()
-                WHERE id = $5 AND is_active = true
-                RETURNING id, title, description, fields, submit_button_text, is_active, created_at, updated_at
-        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.IsActive,
+                SET title = $1, description = $2, fields = $3, submit_button_text = $4, hero_image_url = $5, updated_at = NOW()
+                WHERE id = $6 AND is_active = true
+                RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
+        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl, formID).Scan(
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl, &form.IsActive,
                 &form.CreatedAt, &form.UpdatedAt,
         )
 

@@ -27,6 +27,8 @@ export const FormBuilder: React.FC = () => {
   const [formDescription, setFormDescription] = useState('');
   const [submitButtonText, setSubmitButtonText] = useState('');
   const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [fields, setFields] = useState<FormField[]>([]);
   const [editingField, setEditingField] = useState<FormField | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +85,41 @@ export const FormBuilder: React.FC = () => {
     setFields(fields.filter(field => field.id !== fieldId));
     if (editingField?.id === fieldId) {
       setEditingField(null);
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image file size must be less than 5MB');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setError(null);
+
+    try {
+      // For now, create a local URL until we implement server upload
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setHeroImageUrl(e.target.result as string);
+          setHeroImageFile(file);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -307,27 +344,72 @@ export const FormBuilder: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Hero Banner Image
                   </label>
-                  <input
-                    type="url"
-                    value={heroImageUrl}
-                    onChange={(e) => setHeroImageUrl(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="https://example.com/banner.jpg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Add a hero banner image that will appear at the top of your form. Enter the URL of your image.
-                  </p>
-                  {heroImageUrl && (
+                  <div className="space-y-3">
+                    {/* File Upload */}
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file);
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        disabled={isUploadingImage}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Upload an image file (max 5MB). Recommended size: 1200x675px (16:9 aspect ratio)
+                      </p>
+                    </div>
+
+                    {/* URL Input */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300" />
+                      </div>
+                      <div className="relative flex justify-center text-xs">
+                        <span className="bg-white px-2 text-gray-500">or enter URL</span>
+                      </div>
+                    </div>
+
+                    <input
+                      type="url"
+                      value={heroImageUrl}
+                      onChange={(e) => setHeroImageUrl(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="https://example.com/banner.jpg"
+                      disabled={isUploadingImage}
+                    />
+                  </div>
+
+                  {isUploadingImage && (
+                    <div className="mt-3 text-sm text-blue-600">
+                      Uploading image...
+                    </div>
+                  )}
+
+                  {heroImageUrl && !isUploadingImage && (
                     <div className="mt-3">
                       <p className="text-sm text-gray-700 mb-2">Preview:</p>
-                      <img 
-                        src={heroImageUrl} 
-                        alt="Hero banner preview" 
-                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
+                      <div className="relative">
+                        <img 
+                          src={heroImageUrl} 
+                          alt="Hero banner preview" 
+                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            setHeroImageUrl('');
+                            setHeroImageFile(null);
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
