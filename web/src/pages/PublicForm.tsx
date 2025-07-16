@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Form, FormField, FormSubmission } from '../types/form';
-import { Button } from '../presentation/components/ui/core/Button/Button';
+import { Button } from '../presentation/components/ui/core/Button';
 
 export const PublicForm: React.FC = () => {
   const { formId } = useParams<{ formId: string }>();
@@ -256,6 +256,16 @@ export const PublicForm: React.FC = () => {
 
         {isSubmitted && !error && (
           <div className="bg-white rounded-xl shadow-sm border border-green-200 p-12 text-center">
+            {/* 4Sale Branding */}
+            <div className="mb-8 pb-6 border-b border-gray-100">
+              <img 
+                src="/4sale-logo.png" 
+                alt="4Sale" 
+                className="h-16 mx-auto mb-4"
+              />
+              <p className="text-sm text-gray-500">Powered by 4Sale</p>
+            </div>
+            
             <div className="h-12 w-12 mx-auto mb-6 text-green-600 flex items-center justify-center">
               <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -268,6 +278,16 @@ export const PublicForm: React.FC = () => {
 
         {form && !isSubmitted && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            {/* 4Sale Branding */}
+            <div className="text-center mb-8 pb-6 border-b border-gray-100">
+              <img 
+                src="/4sale-logo.png" 
+                alt="4Sale" 
+                className="h-16 mx-auto mb-4"
+              />
+              <p className="text-sm text-gray-500">Powered by 4Sale</p>
+            </div>
+            
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-3">{form.title}</h1>
               {form.description && (
