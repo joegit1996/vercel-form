@@ -256,36 +256,28 @@ export const PublicForm: React.FC = () => {
 
         {isSubmitted && !error && (
           <div className="bg-white rounded-xl shadow-sm border border-green-200 p-12 text-center">
-            {/* 4Sale Branding */}
-            <div className="mb-6 pb-4 border-b border-gray-100">
-              <img 
-                src="/4sale-logo.png" 
-                alt="4Sale" 
-                className="h-16 mx-auto"
-              />
-            </div>
-            
             <div className="h-12 w-12 mx-auto mb-6 text-green-600 flex items-center justify-center">
               <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">Thank you!</h2>
-            <p className="text-gray-600">Your form has been submitted successfully.</p>
+            <p className="text-gray-600 mb-8">Your form has been submitted successfully.</p>
+            
+            {/* 4Sale Branding */}
+            <div className="text-center mt-8 pt-6 border-t border-gray-100">
+              <img 
+                src="/4sale-logo.png" 
+                alt="4Sale" 
+                className="h-20 mx-auto mb-3"
+              />
+              <p className="text-sm text-gray-500">Powered by 4Sale</p>
+            </div>
           </div>
         )}
 
         {form && !isSubmitted && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            {/* 4Sale Branding */}
-            <div className="text-center mb-6 pb-4 border-b border-gray-100">
-              <img 
-                src="/4sale-logo.png" 
-                alt="4Sale" 
-                className="h-16 mx-auto"
-              />
-            </div>
-            
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-3">{form.title}</h1>
               {form.description && (
@@ -329,7 +321,16 @@ export const PublicForm: React.FC = () => {
               >
                 {form.submitButtonText || 'Submit'}
               </Button>
+            </div>
 
+            {/* 4Sale Branding */}
+            <div className="text-center mt-8 pt-6 border-t border-gray-100">
+              <img 
+                src="/4sale-logo.png" 
+                alt="4Sale" 
+                className="h-20 mx-auto mb-3"
+              />
+              <p className="text-sm text-gray-500">Powered by 4Sale</p>
             </div>
           </div>
         )}
