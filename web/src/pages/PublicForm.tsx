@@ -257,13 +257,13 @@ export const PublicForm: React.FC = () => {
         {isSubmitted && !error && (
           <div className="bg-white rounded-xl shadow-sm border border-green-200 p-12 text-center">
             {/* 4Sale Branding */}
-            <div className="mb-8 pb-6 border-b border-gray-100">
+            <div className="mb-6 pb-4 border-b border-gray-100">
               <img 
                 src="/4sale-logo.png" 
                 alt="4Sale" 
-                className="h-16 mx-auto mb-4"
+                className="h-10 mx-auto mb-2"
               />
-              <p className="text-sm text-gray-500">Powered by 4Sale</p>
+              <p className="text-xs text-gray-400">Powered by 4Sale</p>
             </div>
             
             <div className="h-12 w-12 mx-auto mb-6 text-green-600 flex items-center justify-center">
@@ -279,13 +279,13 @@ export const PublicForm: React.FC = () => {
         {form && !isSubmitted && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
             {/* 4Sale Branding */}
-            <div className="text-center mb-8 pb-6 border-b border-gray-100">
+            <div className="text-center mb-6 pb-4 border-b border-gray-100">
               <img 
                 src="/4sale-logo.png" 
                 alt="4Sale" 
-                className="h-16 mx-auto mb-4"
+                className="h-10 mx-auto mb-2"
               />
-              <p className="text-sm text-gray-500">Powered by 4Sale</p>
+              <p className="text-xs text-gray-400">Powered by 4Sale</p>
             </div>
             
             <div className="text-center mb-8">
