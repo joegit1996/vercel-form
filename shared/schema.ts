@@ -8,6 +8,7 @@ export const forms = pgTable('forms', {
   description: text('description'),
   fields: jsonb('fields').notNull(), // JSON array of field definitions
   submitButtonText: text('submit_button_text').default('Submit'),
+  heroImageUrl: text('hero_image_url'), // URL for hero banner image
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -72,4 +73,5 @@ export interface FormDefinition {
   title: string;
   description?: string;
   fields: FormField[];
+  heroImageUrl?: string;
 }

@@ -32,6 +32,7 @@ export interface Form {
   description?: string;
   fields: FormField[];
   submitButtonText?: string;
+  heroImageUrl?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -50,6 +51,7 @@ export interface FormDefinition {
   description?: string;
   fields: FormField[];
   submitButtonText?: string;
+  heroImageUrl?: string;
 }
 
 export interface FormSubmission {

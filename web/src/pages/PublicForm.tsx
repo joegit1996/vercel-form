@@ -277,13 +277,28 @@ export const PublicForm: React.FC = () => {
         )}
 
         {form && !isSubmitted && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-900 mb-3">{form.title}</h1>
-              {form.description && (
-                <p className="text-gray-600 leading-relaxed">{form.description}</p>
-              )}
-            </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Hero Banner */}
+            {form.heroImageUrl && (
+              <div className="w-full h-48 bg-gray-200 overflow-hidden">
+                <img 
+                  src={form.heroImageUrl} 
+                  alt="Form banner" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.parentElement!.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            
+            <div className="p-8">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold text-gray-900 mb-3">{form.title}</h1>
+                {form.description && (
+                  <p className="text-gray-600 leading-relaxed">{form.description}</p>
+                )}
+              </div>
 
             {/* Phone Number Field - Always Required */}
             <div className="mb-6">
@@ -331,6 +346,7 @@ export const PublicForm: React.FC = () => {
                 className="h-20 mx-auto mb-3"
               />
               <p className="text-sm text-gray-500">Powered by 4Sale</p>
+            </div>
             </div>
           </div>
         )}

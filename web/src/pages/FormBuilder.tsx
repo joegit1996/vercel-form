@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from '../presentation/components/ui/core/Button/Button';
+import { Button } from '../presentation/components/ui/core/Button';
 import { apiService } from '../services/api';
 import { FormField, FieldType, FormDefinition } from '../types/form';
 
@@ -26,6 +26,7 @@ export const FormBuilder: React.FC = () => {
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [submitButtonText, setSubmitButtonText] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState('');
   const [fields, setFields] = useState<FormField[]>([]);
   const [editingField, setEditingField] = useState<FormField | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +47,7 @@ export const FormBuilder: React.FC = () => {
       setFormTitle(form.title);
       setFormDescription(form.description || '');
       setSubmitButtonText(form.submitButtonText || '');
+      setHeroImageUrl(form.heroImageUrl || '');
       setFields(form.fields);
     } catch (err) {
       setError('Failed to load form');
@@ -115,7 +117,8 @@ export const FormBuilder: React.FC = () => {
         title: formTitle.trim(),
         description: formDescription.trim() || undefined,
         fields,
-        submitButtonText: submitButtonText.trim() || undefined
+        submitButtonText: submitButtonText.trim() || undefined,
+        heroImageUrl: heroImageUrl.trim() || undefined
       };
 
       if (isEditing && formId) {
@@ -298,6 +301,35 @@ export const FormBuilder: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="Submit (default)"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Hero Banner Image
+                  </label>
+                  <input
+                    type="url"
+                    value={heroImageUrl}
+                    onChange={(e) => setHeroImageUrl(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    placeholder="https://example.com/banner.jpg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Add a hero banner image that will appear at the top of your form. Enter the URL of your image.
+                  </p>
+                  {heroImageUrl && (
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-700 mb-2">Preview:</p>
+                      <img 
+                        src={heroImageUrl} 
+                        alt="Hero banner preview" 
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
