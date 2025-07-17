@@ -120,14 +120,22 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         var form Form
+        var heroImageUrl sql.NullString
         err = db.QueryRow(`
                 INSERT INTO forms (title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
                 RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
         `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl, &form.IsActive,
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl, &form.IsActive,
                 &form.CreatedAt, &form.UpdatedAt,
         )
+        
+        // Handle NULL hero_image_url
+        if heroImageUrl.Valid {
+                form.HeroImageUrl = heroImageUrl.String
+        } else {
+                form.HeroImageUrl = ""
+        }
 
         if err != nil {
                 http.Error(w, "Error creating form", http.StatusInternalServerError)
@@ -210,11 +218,19 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
         for rows.Next() {
                 var form Form
                 var fieldsJSON []byte
+                var heroImageUrl sql.NullString
 
                 err := rows.Scan(
-                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl,
+                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl,
                         &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
                 )
+                
+                // Handle NULL hero_image_url
+                if heroImageUrl.Valid {
+                        form.HeroImageUrl = heroImageUrl.String
+                } else {
+                        form.HeroImageUrl = ""
+                }
                 if err != nil {
                         http.Error(w, "Error scanning form", http.StatusInternalServerError)
                         return
@@ -258,15 +274,23 @@ func getFormHandler(w http.ResponseWriter, r *http.Request) {
 
         var form Form
         var fieldsJSON []byte
+        var heroImageUrl sql.NullString
 
         err = db.QueryRow(`
                 SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
                 FROM forms
                 WHERE id = $1 AND is_active = true
         `, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl,
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl,
                 &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
+        
+        // Handle NULL hero_image_url
+        if heroImageUrl.Valid {
+                form.HeroImageUrl = heroImageUrl.String
+        } else {
+                form.HeroImageUrl = ""
+        }
 
         if err == sql.ErrNoRows {
                 http.Error(w, "Form not found", http.StatusNotFound)
@@ -373,15 +397,23 @@ func updateFormHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         var form Form
+        var heroImageUrl sql.NullString
         err = db.QueryRow(`
                 UPDATE forms 
                 SET title = $1, description = $2, fields = $3, submit_button_text = $4, hero_image_url = $5, updated_at = NOW()
                 WHERE id = $6 AND is_active = true
                 RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
         `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &form.HeroImageUrl, &form.IsActive,
+                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl, &form.IsActive,
                 &form.CreatedAt, &form.UpdatedAt,
         )
+        
+        // Handle NULL hero_image_url
+        if heroImageUrl.Valid {
+                form.HeroImageUrl = heroImageUrl.String
+        } else {
+                form.HeroImageUrl = ""
+        }
 
         if err == sql.ErrNoRows {
                 http.Error(w, "Form not found", http.StatusNotFound)
