@@ -7,12 +7,9 @@ import { Form, FormResponse } from '../types/form';
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [forms, setForms] = useState<Form[]>([]);
-  const [formResponses, setFormResponses] = useState<Record<number, FormResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingFormId, setDeletingFormId] = useState<number | null>(null);
-  const [showResponses, setShowResponses] = useState<Record<number, boolean>>({});
-  const [loadingResponses, setLoadingResponses] = useState<Record<number, boolean>>({});
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,17 +37,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const loadResponses = async (form: Form) => {
-    try {
-      setLoadingResponses(prev => ({ ...prev, [form.id]: true }));
-      const responses = await apiService.getFormResponses(form.id);
-      setFormResponses(prev => ({ ...prev, [form.id]: responses }));
-      setShowResponses(prev => ({ ...prev, [form.id]: !prev[form.id] }));
-    } catch (err) {
-      console.error('Error loading responses:', err);
-    } finally {
-      setLoadingResponses(prev => ({ ...prev, [form.id]: false }));
-    }
+  const handleViewResponses = (formId: number) => {
+    navigate(`/responses/${formId}`);
   };
 
   const handleEdit = (formId: number) => {
@@ -68,13 +56,7 @@ export const Dashboard: React.FC = () => {
       
       // Reload forms to get updated pagination
       await loadForms();
-      
-      // Remove responses from state
-      setFormResponses(prev => {
-        const newState = { ...prev };
-        delete newState[formId];
-        return newState;
-      });
+
     } catch (err) {
       setError('Failed to delete form');
       console.error('Error deleting form:', err);
@@ -264,62 +246,15 @@ export const Dashboard: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => loadResponses(form)}
-                      loading={loadingResponses[form.id]}
+                      onClick={() => handleViewResponses(form.id)}
                       className="w-full border-gray-300 text-gray-700 text-xs"
                     >
                       <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M21 6h-2l-1-2H6L5 6H3c-.55 0-1 .45-1 1s.45 1 1 1h1v11c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8h1c.55 0 1-.45 1-1s-.45-1-1-1z"/>
                       </svg>
-                      {showResponses[form.id] ? 'Hide' : 'View'} Responses
-                      {formResponses[form.id] && (
-                        <span className="ml-1">({formResponses[form.id].length})</span>
-                      )}
+                      View Responses
                     </Button>
                   </div>
-
-                  {showResponses[form.id] && formResponses[form.id] && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                        Form Responses ({formResponses[form.id].length})
-                      </h4>
-                      
-                      {formResponses[form.id].length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">No responses yet</p>
-                      ) : (
-                        <div className="space-y-3 max-h-96 overflow-y-auto">
-                          {formResponses[form.id].map((response) => (
-                            <div key={response.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs text-gray-500">
-                                  Response #{response.id}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(response.submittedAt).toLocaleString()}
-                                </span>
-                              </div>
-                              
-                              <div className="mb-2">
-                                <span className="text-xs font-medium text-gray-700">Phone:</span>
-                                <span className="text-xs text-gray-600 ml-1">{response.phoneNumber}</span>
-                              </div>
-                              
-                              <div className="space-y-1">
-                                {Object.entries(response.responseData).map(([key, value]) => (
-                                  <div key={key} className="text-xs">
-                                    <span className="font-medium text-gray-700">{key}:</span>
-                                    <span className="text-gray-600 ml-1">
-                                      {Array.isArray(value) ? value.join(', ') : String(value)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

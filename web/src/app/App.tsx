@@ -4,6 +4,7 @@ import { LocalizationProvider } from '../application/i18n/LocalizationProvider';
 import { Dashboard } from '../pages/Dashboard';
 import { FormBuilder } from '../pages/FormBuilder';
 import { PublicForm } from '../pages/PublicForm';
+import { ResponsesPage } from '../pages/ResponsesPage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/form-builder" element={<FormBuilder />} />
             <Route path="/form-builder/:formId" element={<FormBuilder />} />
             <Route path="/form/:formId" element={<PublicForm />} />
+            <Route path="/responses/:formId" element={<ResponsesPage />} />
           </Routes>
         </div>
       </Router>
