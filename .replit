@@ -2,7 +2,7 @@ modules = ["go", "nodejs-20", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip"]
+packages = ["unzip", "mysql80"]
 
 [workflows]
 runButton = "Project"

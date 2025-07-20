@@ -27,7 +27,7 @@ The project follows a monorepo structure with clear separation between backend a
 - **Domain Layer**: Business logic and entities (to be implemented)
 - **Infrastructure Layer**: Database, external services (PostgreSQL setup ready)
 - **API Layer**: REST endpoints and OpenAPI specifications (`api/`)
-- **Database**: PostgreSQL with environment-based configuration
+- **Database**: MySQL (AWS RDS) with environment-based configuration
 
 ### Frontend Components (`/web`)
 - **App Layer** (`src/app/`): Application configuration, providers, and routing
@@ -66,7 +66,7 @@ The project follows a monorepo structure with clear separation between backend a
 
 ### Backend Dependencies
 - **Go Modules**: Dependency management
-- **PostgreSQL**: Primary database
+- **MySQL**: Primary database (AWS RDS)
 - **Environment Variables**: Configuration management via `.env`
 
 ### Frontend Dependencies
@@ -108,7 +108,13 @@ The project follows a monorepo structure with clear separation between backend a
 
 ## Changelog
 
-- June 30, 2025. Initial setup
+- July 20, 2025: Database migration from PostgreSQL to MySQL
+  - Updated schema from pgTable to mysqlTable syntax
+  - Changed database connection from Neon to AWS RDS MySQL
+  - Updated Drizzle configuration for MySQL dialect
+  - Added SSL configuration for secure connections
+  - Note: Connection requires IP whitelisting (Replit IP: 34.168.173.153)
+- June 30, 2025: Initial setup
 
 ## User Preferences
 

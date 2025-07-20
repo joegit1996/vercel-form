@@ -1,12 +1,12 @@
-import { pgTable, text, timestamp, integer, serial, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { mysqlTable, text, timestamp, int, json, boolean } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 // Forms table - stores form definitions created by admin
-export const forms = pgTable('forms', {
-  id: serial('id').primaryKey(),
+export const forms = mysqlTable('forms', {
+  id: int('id').primaryKey().autoincrement(),
   title: text('title').notNull(),
   description: text('description'),
-  fields: jsonb('fields').notNull(), // JSON array of field definitions
+  fields: json('fields').notNull(), // JSON array of field definitions
   submitButtonText: text('submit_button_text').default('Submit'),
   heroImageUrl: text('hero_image_url'), // URL for hero banner image
   isActive: boolean('is_active').default(true),
@@ -15,11 +15,11 @@ export const forms = pgTable('forms', {
 });
 
 // Form responses table - stores user submissions
-export const formResponses = pgTable('form_responses', {
-  id: serial('id').primaryKey(),
-  formId: integer('form_id').notNull().references(() => forms.id),
+export const formResponses = mysqlTable('form_responses', {
+  id: int('id').primaryKey().autoincrement(),
+  formId: int('form_id').notNull().references(() => forms.id),
   phoneNumber: text('phone_number').notNull(), // Required field for all forms
-  responseData: jsonb('response_data').notNull(), // JSON object with field_name: value pairs
+  responseData: json('response_data').notNull(), // JSON object with field_name: value pairs
   submittedAt: timestamp('submitted_at').defaultNow(),
 });
 
