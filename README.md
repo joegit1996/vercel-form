@@ -1,128 +1,150 @@
-# 4Sale Backend Skeleton - Production Ready Go Project
+# Dynamic Form Creator
 
-A production-ready Go backend project skeleton with hexagonal architecture structure and minimal setup, featuring a modern React frontend with comprehensive localization and custom font integration.
+A production-ready full-stack application for creating and managing dynamic forms with comprehensive response handling.
 
-## 🚀 Quick Start
+## 🚀 Features
 
-### Backend (Go)
-```bash
-cd backend
-go run main.go
+- **Dynamic Form Builder**: Create forms with various field types (text, textarea, select, radio, checkbox, etc.)
+- **Hero Image Support**: Upload and display hero banners with drag-and-drop functionality
+- **Response Management**: Dedicated pages for viewing form responses with CSV export
+- **MySQL Integration**: Production-ready database with AWS RDS support
+- **Modern UI**: Built with React, TypeScript, and Tailwind CSS
+- **4Sale Branding**: Integrated design system with custom fonts
+- **Multilingual Support**: Arabic/English with RTL/LTR support
+- **Responsive Design**: Mobile-first approach with modern components
+
+## 🛠 Tech Stack
+
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for development and building
+- **Tailwind CSS** for styling
+- **React Router** for navigation
+- **i18next** for internationalization
+
+### Backend
+- **Go** with hexagonal architecture
+- **MySQL** (AWS RDS) with Drizzle ORM
+- **RESTful API** with CORS support
+- **File uploads** for hero images
+
+## 🏗 Architecture
+
 ```
-
-### Frontend (React + TypeScript)
-```bash
-cd web
-npm install
-npm run dev
-```
-
-The backend runs on port 5000 and frontend on port 3000.
-
-## 📁 Project Structure
-
-```
-├── backend/                    # Go backend with hexagonal architecture
-├── web/                       # React frontend application
+├── backend/              # Go backend (hexagonal architecture)
+├── web/                  # React frontend
 │   ├── src/
-│   │   ├── application/       # Application layer (i18n, utils)
-│   │   ├── domain/           # Domain layer (tokens, types)
-│   │   ├── presentation/     # UI components and pages
-│   │   └── app/             # Main app configuration
-│   ├── public/
-│   │   ├── fonts/           # SakrPro custom font files
-│   │   └── locales/         # Translation files (en/ar)
-│   └── stories/            # Storybook stories
+│   │   ├── app/         # Application layer
+│   │   ├── pages/       # UI pages
+│   │   ├── presentation/ # UI components
+│   │   ├── application/ # Business logic
+│   │   └── infrastructure/ # API clients
+├── shared/              # Shared schemas and types
+├── main.go             # Go entry point
+└── package.json        # Node.js dependencies
 ```
 
-## 🎨 Design System Features
+## 🚦 Getting Started
 
-### Custom Font Integration (SakrPro)
-- **Exclusive Font Usage**: SakrPro is the ONLY font used throughout the entire system
-- **No Fallback Fonts**: Ensures consistent branding and typography
-- **Multiple Weights**: Light (300), Regular (400), Medium (500), Bold (700)
-- **RTL/LTR Support**: Optimized for both English and Arabic text
-
-**Font Files Location**: `/web/public/fonts/`
-- `sakrPro-Light.otf`
-- `sakrPro-Regular.otf`
-- `sakrPro-Medium.otf`
-- `sakrPro-Bold.otf`
-
-**Documentation**: See `/web/README-FONT-INTEGRATION.md` for detailed font setup and customization instructions.
-
-### Internationalization (i18n)
-- **Bilingual Support**: English (LTR) and Arabic (RTL)
-- **Automatic Direction Detection**: HTML dir attribute management
-- **Dynamic Language Switching**: Real-time language toggle
-- **RTL Layout Support**: Complete CSS overrides for Arabic layouts
-
-**Documentation**: See `/web/README-LOCALIZATION.md` for localization setup and usage.
-
-### Component Library
-- **Tailwind CSS**: Utility-first styling with custom configuration
-- **Component Variants**: Using class-variance-authority for consistent styling
-- **Storybook Integration**: Interactive component documentation
-- **Accessibility**: WCAG compliant components
-
-## 🛠️ Development
-
-### Testing
-```bash
-cd web
-npm run test        # Run unit tests
-npm run test:watch  # Run tests in watch mode
-```
-
-### Storybook
-```bash
-cd web
-npm run storybook   # Launch Storybook on port 6006
-```
-
-### Build
-```bash
-cd web
-npm run build       # Production build
-```
-
-## 🔧 Configuration
-
-### Font Customization
-To replace SakrPro with another custom font:
-
-1. Replace font files in `/web/public/fonts/`
-2. Update `@font-face` declarations in `/web/src/presentation/styles/fonts.css`
-3. Update font family in `/web/tailwind.config.js`
-
-### Adding New Languages
-1. Add language to `SUPPORTED_LANGUAGES` in `/web/src/application/i18n/config.ts`
-2. Create translation file in `/web/public/locales/{language}/common.json`
-3. Add RTL support if needed in `RTL_LANGUAGES` array
-
-## 📋 Requirements
-
+### Prerequisites
 - Node.js 18+
-- Go 1.21+
-- Modern browser with OpenType font support
+- Go 1.19+
+- MySQL 8.0+
 
-## 🎯 Key Features
+### Environment Setup
+Create a `.env` file with your database credentials:
+```bash
+DB_HOST=your-mysql-host
+DB_PORT=3306
+DB_NAME=your-database
+DB_USER=your-username
+DB_PASSWORD=your-password
+```
 
-- ✅ Production-ready hexagonal architecture (Go backend)
-- ✅ Modern React frontend with TypeScript
-- ✅ Custom SakrPro font integration (no fallbacks)
-- ✅ Comprehensive RTL/LTR localization
-- ✅ TDD methodology with testing setup
-- ✅ Security best practices implementation
-- ✅ Component library with Storybook
-- ✅ Tailwind CSS with custom design tokens
+### Installation
+```bash
+# Install dependencies
+npm install
 
-## 📝 Important Notes
+# Push database schema
+npx drizzle-kit push
 
-**Font Policy**: This project uses SakrPro as the exclusive font family. No fallback or system fonts are used anywhere in the application to ensure consistent branding and typography across all components and pages.
+# Start Go backend (port 5000)
+go run main.go
 
-**Localization**: The application fully supports both English and Arabic with proper RTL layout handling, ensuring accessibility and usability for both language speakers.
+# Start React frontend (port 3000)
+cd web && npm run dev
+```
+
+## 📊 Database Schema
+
+### Forms Table
+- Form definitions with fields, hero images, and settings
+- JSON storage for dynamic field configurations
+- Soft delete support
+
+### Form Responses Table
+- User submissions with phone numbers (required)
+- JSON storage for response data
+- Timestamp tracking
+
+## 🎨 Features Overview
+
+### Form Builder
+- Drag-and-drop interface
+- Multiple field types with validation
+- Hero image upload (max 5MB)
+- Custom submit button text
+- Preview functionality
+
+### Response Management
+- Dedicated response viewing pages
+- CSV export functionality
+- Pagination support
+- Professional data display
+
+### File Management
+- Secure file upload with validation
+- Image optimization and storage
+- Hero banner integration
+
+## 🌐 API Endpoints
+
+```
+POST   /api/forms              - Create new form
+GET    /api/forms              - Get all forms (paginated)
+GET    /api/forms/{id}         - Get specific form
+PUT    /api/forms/{id}         - Update existing form
+DELETE /api/forms/{id}         - Soft delete form
+POST   /api/submit             - Submit form response
+GET    /api/forms/{id}/responses - Get form responses
+POST   /api/upload             - Upload hero image
+```
+
+## 🔧 Development
+
+The project uses:
+- **TDD methodology** for robust development
+- **Clean architecture** with clear separation of concerns
+- **Type safety** throughout with TypeScript
+- **Modern tooling** with Vite and hot reload
+
+## 📝 Recent Updates
+
+- ✅ Database migration from PostgreSQL to MySQL
+- ✅ Enhanced response viewing with dedicated pages
+- ✅ CSV export functionality
+- ✅ Hero image upload with validation
+- ✅ Comprehensive form builder interface
 
 ## 🚀 Deployment
 
-The project is configured for Replit deployment. Both backend and frontend will be automatically built and served through the configured workflows.
+The application is ready for deployment with:
+- Environment-based configuration
+- Production-optimized builds
+- Database migration support
+- Scalable architecture
+
+## 📄 License
+
+This project is configured for production use with the 4Sale design system and branding.
