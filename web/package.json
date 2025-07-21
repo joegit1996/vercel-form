@@ -13,7 +13,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:lib": "vite build --mode lib",
-    "vercel-build": "rm -rf src/**/*.test.tsx src/**/*.test.ts src/**/*.stories.tsx && rm -rf tests/ stories/ .storybook/ && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
