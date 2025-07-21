@@ -128,6 +128,13 @@ export const ResponsesPage: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
+            <div className="text-center mb-4">
+              <img 
+                src="/4sale-logo.png" 
+                alt="4Sale" 
+                className="h-12 mx-auto"
+              />
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-2 inline-block">

@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: form-generator-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: staging-jan-4-2023-cluster.cluster-cylpew54lkmg.eu-west-1.rds.amazonaws.com
+      DB_PORT: "3306"
+      DB_NAME: sc_dynamic_form_generator
+      DB_USER: sc_dynamic_form_generator_dbuser
+      DB_PASSWORD: "oin!zxc@12mk$$palksd"
+      SERVER_PORT: "5001"
+      ENV: production
+    ports:
+      - "5001:5001"
+    networks:
+      - form-generator-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5001/health"]
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: form-generator-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - form-generator-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  form-generator-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+    driver: local 

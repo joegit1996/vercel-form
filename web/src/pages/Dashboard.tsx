@@ -99,6 +99,11 @@ export const Dashboard: React.FC = () => {
       <div className="max-w-6xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <img 
+            src="/4sale-logo.png" 
+            alt="4Sale" 
+            className="h-16 mx-auto mb-6"
+          />
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Form Dashboard</h1>
           <p className="text-gray-600 text-lg mb-8">Manage your forms and view submissions</p>
           

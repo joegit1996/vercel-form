@@ -285,6 +285,11 @@ export const FormBuilder: React.FC = () => {
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <img 
+            src="/4sale-logo.png" 
+            alt="4Sale" 
+            className="h-16 mx-auto mb-6"
+          />
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             {isEditing ? 'Edit Form' : 'Create New Form'}
           </h1>
@@ -544,11 +549,17 @@ export const FormBuilder: React.FC = () => {
                 All forms automatically include a phone number field for agent contact.
               </p>
               <Button
-                onClick={() => window.open('/form/preview', '_blank')}
+                onClick={() => {
+                  if (isEditing && formId) {
+                    window.open(`/form/${formId}`, '_blank');
+                  } else {
+                    alert('Please save the form first to preview it');
+                  }
+                }}
                 variant="outline"
                 className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
               >
-                Preview Form
+                {isEditing ? 'Preview Form' : 'Save to Preview'}
               </Button>
             </div>
           </div>
