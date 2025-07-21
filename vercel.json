@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "form-generator-frontend",
+  "buildCommand": "cd web && npm run vercel-build",
+  "outputDirectory": "web/dist",
+  "installCommand": "cd web && npm install",
+  "framework": "vite",
+  "env": {
+    "VITE_API_BASE_URL": "@api_base_url"
+  },
+  "routes": [
+    {
+      "src": "/4sale-logo.png",
+      "dest": "/4sale-logo.png"
+    },
+    {
+      "src": "/favicon.png", 
+      "dest": "/favicon.png"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+} 
