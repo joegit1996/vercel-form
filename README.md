@@ -129,13 +129,47 @@ The project uses:
 - **Type safety** throughout with TypeScript
 - **Modern tooling** with Vite and hot reload
 
+## 🌍 Multilingual & RTL Support
+
+- **Full Arabic/English support**: All forms, fields, and placeholders support both languages.
+- **Automatic RTL for Arabic**: Input fields, placeholders, and text are right-aligned and use RTL direction when the form is in Arabic, enforced by a `.force-rtl` utility class.
+- **Multi-language field storage**: All form fields (title, description, labels, placeholders, options) are stored as JSON objects with `en` and `ar` keys in the database.
+- **Easy language extension**: To add more languages, extend the `MultiLanguageText` type and update the UI components.
+
+## 🐳 Docker & Development
+
+### Aggressive Docker Cache Clearing
+If you encounter issues where the frontend or backend does not reflect your latest code changes (especially with styles or JS):
+
+```bash
+docker-compose down
+rm -rf web/dist/
+docker system prune -af
+docker-compose build --no-cache frontend
+# or for backend: docker-compose build --no-cache backend
+docker-compose up -d
+```
+
+This guarantees all containers use the latest code and assets.
+
 ## 📝 Recent Updates
 
-- ✅ Database migration from PostgreSQL to MySQL
-- ✅ Enhanced response viewing with dedicated pages
-- ✅ CSV export functionality
-- ✅ Hero image upload with validation
-- ✅ Comprehensive form builder interface
+- ✅ **Enforced RTL for Arabic forms**: All input, textarea, and select fields use `.force-rtl` for correct alignment.
+- ✅ **Multi-language JSON storage**: All form fields now use `{ en: string, ar: string }` objects in the DB.
+- ✅ **Aggressive Docker cache clearing**: Documented and automated for reliable local development.
+- ✅ **Removed all test and storybook files**: For clean production builds.
+- ✅ **Font and logo fixes**: 4Sale branding and SakrPro font fully integrated.
+
+## 🛠 Troubleshooting
+
+### Docker cache issues
+If you see old code or styles, always:
+- Hard refresh your browser (Cmd+Shift+R)
+- Run the aggressive Docker cache clearing steps above
+
+### RTL not working in Arabic
+- Ensure you are on the latest branch and have rebuilt the frontend
+- The `.force-rtl` class is applied to all relevant fields in Arabic mode
 
 ## 🚀 Deployment
 
