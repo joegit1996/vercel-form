@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button';
 import { apiService } from '../services/api';
-import { Form, FormResponse } from '../types/form';
+import { Form, FormResponse, MultiLanguageText } from '../types/form';
 
 export const ResponsesPage: React.FC = () => {
   const { formId } = useParams<{ formId: string }>();
@@ -41,7 +41,7 @@ export const ResponsesPage: React.FC = () => {
     // Create CSV headers
     const headers = ['Response ID', 'Phone Number', 'Submitted At'];
     form.fields.forEach(field => {
-      headers.push(field.label);
+      headers.push(getText(field.label));
     });
 
     // Create CSV rows
@@ -69,11 +69,16 @@ export const ResponsesPage: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `${form.title.replace(/[^a-zA-Z0-9]/g, '_')}_responses.csv`);
+    link.setAttribute('download', `${getText(form.title).replace(/[^a-zA-Z0-9]/g, '_')}_responses.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const getText = (text: string | MultiLanguageText): string => {
+    if (typeof text === 'string') return text;
+    return text.en || '';
   };
 
   if (loading) {
@@ -140,9 +145,9 @@ export const ResponsesPage: React.FC = () => {
                 <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-2 inline-block">
                   ← Back to Dashboard
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-900">{form.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{getText(form.title)}</h1>
                 {form.description && (
-                  <p className="text-gray-600 mt-1">{form.description}</p>
+                  <p className="text-gray-600 mt-1">{getText(form.description)}</p>
                 )}
               </div>
               <div className="flex items-center space-x-4">
@@ -226,7 +231,7 @@ export const ResponsesPage: React.FC = () => {
                       return (
                         <div key={field.id} className="border-l-4 border-blue-200 pl-4">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {field.label}
+                            {getText(field.label)}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                           </label>
                           <div className="text-sm text-gray-900 bg-gray-50 rounded-md p-3 min-h-[2.5rem] flex items-center">

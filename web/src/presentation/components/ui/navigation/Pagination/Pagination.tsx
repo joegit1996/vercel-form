@@ -97,7 +97,7 @@ const Pagination = React.forwardRef<HTMLDivElement, PaginationProps>(
       onPageChange(page);
     };
 
-    const renderPageButton = (page: number | string, index: number) => {
+    const renderPageButton = (page: number | string) => {
       if (typeof page === 'string' && page.startsWith('ellipsis')) {
         return (
           <div
@@ -178,7 +178,7 @@ const Pagination = React.forwardRef<HTMLDivElement, PaginationProps>(
         {/* Page Numbers */}
         {showPageNumbers && (
           <div className="flex items-center space-x-1">
-            {visiblePages.map((page, index) => renderPageButton(page, index))}
+            {visiblePages.map((page) => renderPageButton(page))}
           </div>
         )}
 

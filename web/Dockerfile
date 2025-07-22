@@ -21,7 +21,7 @@ RUN find src -name "*.test.tsx" -delete && \
     rm -rf stories/ && \
     rm -rf .storybook/
 
-# Build the application directly with vite (skip TypeScript checks)
+# Build the application directly with vite (skip TypeScript checks) - v4
 RUN npx vite build
 
 # Production stage
@@ -30,7 +30,7 @@ FROM nginx:alpine
 # Install wget for health checks
 RUN apk --no-cache add wget
 
-# Copy built app from builder stage
+# Copy built app from builder stage - v4
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
