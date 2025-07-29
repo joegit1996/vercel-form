@@ -8,8 +8,8 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// Use relative path to proxy through frontend server
-const API_BASE_URL = '/api';
+// Use environment variable for API URL in production, fallback to proxy for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiService {
   private async request<T>(

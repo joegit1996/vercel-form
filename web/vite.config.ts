@@ -5,6 +5,7 @@ import autoprefixer from 'autoprefixer';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/',
   resolve: {
     alias: {
       '@': './src',
@@ -25,6 +26,19 @@ export default defineConfig({
         secure: false,
       },
     },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          i18n: ['i18next', 'react-i18next']
+        }
+      }
+    }
   },
   css: {
     postcss: {
