@@ -72,5 +72,8 @@
   "bugs": {
     "url": "https://github.com/4SaleTech/web-design-system/issues"
   },
-  "homepage": "https://github.com/4SaleTech/web-design-system#readme"
+  "homepage": "https://github.com/4SaleTech/web-design-system#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
