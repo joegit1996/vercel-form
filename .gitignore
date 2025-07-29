@@ -86,3 +86,4 @@ backend/uploads/
 # Test files
 test-*.js
 test-*.ts
+.vercel

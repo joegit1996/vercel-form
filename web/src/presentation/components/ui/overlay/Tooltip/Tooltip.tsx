@@ -34,8 +34,8 @@ const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
     
     const triggerRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
-    const timeoutRef = React.useRef<number>();
-    const skipTimeoutRef = React.useRef<number>();
+    const timeoutRef = React.useRef<ReturnType<typeof setTimeout>>();
+    const skipTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>();
     const lastHideTime = React.useRef<number>(0);
 
     const calculatePosition = React.useCallback(() => {
