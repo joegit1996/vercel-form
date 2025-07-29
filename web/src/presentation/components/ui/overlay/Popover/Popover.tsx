@@ -39,7 +39,7 @@ const Popover = React.forwardRef<HTMLDivElement, PopoverProps>(
     arrowClassName,
     triggerClassName,
     ...props
-  }, ref) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+  }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
     const [isOpen, setIsOpen] = React.useState(defaultOpen);
     const [position, setPosition] = React.useState({ x: 0, y: 0 });
     

@@ -19,32 +19,32 @@ type DatabaseConfig struct {
 // LoadDatabaseConfig loads database configuration from environment variables
 func LoadDatabaseConfig() *DatabaseConfig {
 	config := &DatabaseConfig{
-		Host:     getEnvOrDefault("PGHOST", "localhost"),
-		User:     getEnvOrDefault("PGUSER", "postgres"),
-		Password: getEnvOrDefault("PGPASSWORD", ""),
-		DBName:   getEnvOrDefault("PGDATABASE", "postgres"),
+		Host:     getEnvOrDefault("DB_HOST", "localhost"),
+		User:     getEnvOrDefault("DB_USER", "root"),
+		Password: getEnvOrDefault("DB_PASSWORD", ""),
+		DBName:   getEnvOrDefault("DB_NAME", "test"),
 		URL:      getEnvOrDefault("DATABASE_URL", ""),
 	}
 
 	// Parse port with default
-	portStr := getEnvOrDefault("PGPORT", "5432")
+	portStr := getEnvOrDefault("DB_PORT", "3306")
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		port = 5432
+		port = 3306
 	}
 	config.Port = port
 
 	return config
 }
 
-// GetConnectionString returns the database connection string
+// GetConnectionString returns the MySQL connection string
 func (c *DatabaseConfig) GetConnectionString() string {
 	if c.URL != "" {
 		return c.URL
 	}
-	
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		c.Host, c.Port, c.User, c.Password, c.DBName)
+	// MySQL DSN: user:password@tcp(host:port)/dbname?parseTime=true&charset=utf8mb4&collation=utf8mb4_unicode_ci
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4&collation=utf8mb4_unicode_ci",
+		c.User, c.Password, c.Host, c.Port, c.DBName)
 }
 
 // getEnvOrDefault gets environment variable or returns default value

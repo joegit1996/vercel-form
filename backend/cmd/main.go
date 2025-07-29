@@ -2,6 +2,7 @@ package main
 
 import (
         "database/sql"
+        "database/sql/driver"
         "encoding/json"
         "fmt"
         "log"
@@ -10,32 +11,73 @@ import (
         "strconv"
         "strings"
         "time"
+        "path/filepath"
 
-        _ "github.com/lib/pq"
+        _ "github.com/go-sql-driver/mysql"
+        "github.com/joho/godotenv"
 )
+
+// Multi-language text type
+type MultiLanguageText map[string]string
+
+// Scan implements the sql.Scanner interface for MultiLanguageText
+func (m *MultiLanguageText) Scan(value interface{}) error {
+	if value == nil {
+		*m = make(map[string]string)
+		return nil
+	}
+	
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into MultiLanguageText", value)
+	}
+	
+	if len(bytes) == 0 {
+		*m = make(map[string]string)
+		return nil
+	}
+	
+	// First check if it's a string (backward compatibility)
+	var str string
+	if err := json.Unmarshal(bytes, &str); err == nil {
+		*m = MultiLanguageText{"en": str, "ar": ""}
+		return nil
+	}
+	
+	// Otherwise unmarshal as object
+	return json.Unmarshal(bytes, m)
+}
+
+// Value implements the driver.Valuer interface for MultiLanguageText
+func (m MultiLanguageText) Value() (driver.Value, error) {
+	if m == nil {
+		return "{}", nil
+	}
+	return json.Marshal(m)
+}
 
 // FormField represents a field in a form
 type FormField struct {
         ID          string            `json:"id"`
         Type        string            `json:"type"`
-        Label       string            `json:"label"`
-        Placeholder string            `json:"placeholder,omitempty"`
+        Label       MultiLanguageText `json:"label"`
+        Placeholder MultiLanguageText `json:"placeholder,omitempty"`
         Required    bool              `json:"required"`
-        Options     []string          `json:"options,omitempty"`
+        Options     []MultiLanguageText `json:"options,omitempty"`
         Validation  map[string]interface{} `json:"validation,omitempty"`
 }
 
 // Form represents a form definition
 type Form struct {
-        ID               int         `json:"id"`
-        Title            string      `json:"title"`
-        Description      string      `json:"description,omitempty"`
-        Fields           []FormField `json:"fields"`
-        SubmitButtonText string      `json:"submitButtonText,omitempty"`
-        HeroImageUrl     string      `json:"heroImageUrl,omitempty"`
-        IsActive         bool        `json:"isActive"`
-        CreatedAt        time.Time   `json:"createdAt"`
-        UpdatedAt        time.Time   `json:"updatedAt"`
+        ID               int                `json:"id"`
+        Title            MultiLanguageText  `json:"title"`
+        Description      MultiLanguageText  `json:"description,omitempty"`
+        Fields           []FormField        `json:"fields"`
+        SubmitButtonText MultiLanguageText  `json:"submitButtonText,omitempty"`
+        HeroImageUrl     string             `json:"heroImageUrl,omitempty"`
+        IsActive         bool               `json:"isActive"`
+        CreatedAt        time.Time          `json:"createdAt"`
+        UpdatedAt        time.Time          `json:"updatedAt"`
 }
 
 // FormResponse represents a form submission
@@ -53,12 +95,18 @@ var db *sql.DB
 // Initialize database connection
 func initDB() {
         var err error
-        databaseURL := os.Getenv("DATABASE_URL")
-        if databaseURL == "" {
-                log.Fatal("DATABASE_URL environment variable is required")
+        // Build MySQL DSN from environment variables
+        user := os.Getenv("DB_USER")
+        password := os.Getenv("DB_PASSWORD")
+        host := os.Getenv("DB_HOST")
+        port := os.Getenv("DB_PORT")
+        dbname := os.Getenv("DB_NAME")
+        if user == "" || password == "" || host == "" || port == "" || dbname == "" {
+                log.Fatal("All DB_* environment variables are required (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)")
         }
+        dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4&collation=utf8mb4_unicode_ci", user, password, host, port, dbname)
 
-        db, err = sql.Open("postgres", databaseURL)
+        db, err = sql.Open("mysql", dsn)
         if err != nil {
                 log.Fatalf("Error connecting to database: %v", err)
         }
@@ -67,7 +115,7 @@ func initDB() {
                 log.Fatalf("Error pinging database: %v", err)
         }
 
-        fmt.Println("Successfully connected to database")
+        fmt.Println("Successfully connected to MySQL database")
 }
 
 // CORS middleware
@@ -101,11 +149,11 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         var formData struct {
-                Title            string      `json:"title"`
-                Description      string      `json:"description"`
-                Fields           []FormField `json:"fields"`
-                SubmitButtonText string      `json:"submitButtonText"`
-                HeroImageUrl     string      `json:"heroImageUrl"`
+                Title            MultiLanguageText  `json:"title"`
+                Description      MultiLanguageText  `json:"description"`
+                Fields           []FormField        `json:"fields"`
+                SubmitButtonText MultiLanguageText  `json:"submitButtonText"`
+                HeroImageUrl     string             `json:"heroImageUrl"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
@@ -113,40 +161,88 @@ func createFormHandler(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
+        // Marshal MultiLanguageText fields as JSON
+        titleJSON, err := json.Marshal(formData.Title)
+        if err != nil {
+                http.Error(w, "Error encoding title", http.StatusInternalServerError)
+                return
+        }
+        descriptionJSON, err := json.Marshal(formData.Description)
+        if err != nil {
+                http.Error(w, "Error encoding description", http.StatusInternalServerError)
+                return
+        }
+        submitButtonTextJSON, err := json.Marshal(formData.SubmitButtonText)
+        if err != nil {
+                http.Error(w, "Error encoding submit button text", http.StatusInternalServerError)
+                return
+        }
         fieldsJSON, err := json.Marshal(formData.Fields)
         if err != nil {
                 http.Error(w, "Error encoding fields", http.StatusInternalServerError)
                 return
         }
 
+        // Insert form (MySQL compatible)
+        result, err := db.Exec(`
+                INSERT INTO forms (title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, true, NOW(), NOW())
+        `, titleJSON, descriptionJSON, fieldsJSON, submitButtonTextJSON, formData.HeroImageUrl)
+        if err != nil {
+                log.Printf("Error creating form: %v", err)
+                http.Error(w, "Error creating form", http.StatusInternalServerError)
+                return
+        }
+        insertedID, err := result.LastInsertId()
+        if err != nil {
+                log.Printf("Error getting inserted ID: %v", err)
+                http.Error(w, "Error getting inserted ID", http.StatusInternalServerError)
+                return
+        }
+        // Fetch the inserted row
         var form Form
         var heroImageUrl sql.NullString
+        var fieldsJSONResult []byte
+        var titleJSONResult, descriptionJSONResult, submitButtonTextJSONResult []byte
         err = db.QueryRow(`
-                INSERT INTO forms (title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
-                RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
-        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl, &form.IsActive,
-                &form.CreatedAt, &form.UpdatedAt,
+                SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
+                FROM forms WHERE id = ?
+        `, insertedID).Scan(
+                &form.ID, &titleJSONResult, &descriptionJSONResult, &fieldsJSONResult, &submitButtonTextJSONResult, &heroImageUrl, &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
+        if err != nil {
+                log.Printf("Error fetching created form: %v", err)
+                http.Error(w, "Error fetching created form", http.StatusInternalServerError)
+                return
+        }
         
-        // Handle NULL hero_image_url
+        // Unmarshal JSON fields
+        if err := json.Unmarshal(titleJSONResult, &form.Title); err != nil {
+                log.Printf("Error unmarshaling title: %v", err)
+                http.Error(w, "Error parsing title", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(descriptionJSONResult, &form.Description); err != nil {
+                log.Printf("Error unmarshaling description: %v", err)
+                http.Error(w, "Error parsing description", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(submitButtonTextJSONResult, &form.SubmitButtonText); err != nil {
+                log.Printf("Error unmarshaling submitButtonText: %v", err)
+                http.Error(w, "Error parsing submitButtonText", http.StatusInternalServerError)
+                return
+        }
+        
         if heroImageUrl.Valid {
                 form.HeroImageUrl = heroImageUrl.String
         } else {
                 form.HeroImageUrl = ""
         }
-
-        if err != nil {
-                http.Error(w, "Error creating form", http.StatusInternalServerError)
-                return
-        }
-
-        if err := json.Unmarshal(fieldsJSON, &form.Fields); err != nil {
+        if err := json.Unmarshal(fieldsJSONResult, &form.Fields); err != nil {
+                log.Printf("Error parsing fields: %v", err)
                 http.Error(w, "Error parsing fields", http.StatusInternalServerError)
                 return
         }
-
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(form)
 }
@@ -206,7 +302,7 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 FROM forms
                 WHERE is_active = true
                 ORDER BY created_at DESC
-                LIMIT $1 OFFSET $2
+                LIMIT ? OFFSET ?
         `, pageSize, offset)
         if err != nil {
                 http.Error(w, "Error fetching forms", http.StatusInternalServerError)
@@ -219,11 +315,35 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 var form Form
                 var fieldsJSON []byte
                 var heroImageUrl sql.NullString
+                var titleJSON, descriptionJSON, submitButtonTextJSON []byte
 
                 err := rows.Scan(
-                        &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl,
+                        &form.ID, &titleJSON, &descriptionJSON, &fieldsJSON, &submitButtonTextJSON, &heroImageUrl,
                         &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
                 )
+                
+                if err != nil {
+                        log.Printf("Error scanning form: %v", err)
+                        http.Error(w, "Error scanning form", http.StatusInternalServerError)
+                        return
+                }
+                
+                // Unmarshal JSON fields
+                if err := json.Unmarshal(titleJSON, &form.Title); err != nil {
+                        log.Printf("Error unmarshaling title: %v", err)
+                        http.Error(w, "Error parsing title", http.StatusInternalServerError)
+                        return
+                }
+                if err := json.Unmarshal(descriptionJSON, &form.Description); err != nil {
+                        log.Printf("Error unmarshaling description: %v", err)
+                        http.Error(w, "Error parsing description", http.StatusInternalServerError)
+                        return
+                }
+                if err := json.Unmarshal(submitButtonTextJSON, &form.SubmitButtonText); err != nil {
+                        log.Printf("Error unmarshaling submitButtonText: %v", err)
+                        http.Error(w, "Error parsing submitButtonText", http.StatusInternalServerError)
+                        return
+                }
                 
                 // Handle NULL hero_image_url
                 if heroImageUrl.Valid {
@@ -231,12 +351,9 @@ func getFormsHandler(w http.ResponseWriter, r *http.Request) {
                 } else {
                         form.HeroImageUrl = ""
                 }
-                if err != nil {
-                        http.Error(w, "Error scanning form", http.StatusInternalServerError)
-                        return
-                }
 
                 if err := json.Unmarshal(fieldsJSON, &form.Fields); err != nil {
+                        log.Printf("Error unmarshaling fields: %v", err)
                         http.Error(w, "Error parsing fields", http.StatusInternalServerError)
                         return
                 }
@@ -275,29 +392,48 @@ func getFormHandler(w http.ResponseWriter, r *http.Request) {
         var form Form
         var fieldsJSON []byte
         var heroImageUrl sql.NullString
+        var titleJSON, descriptionJSON, submitButtonTextJSON []byte
 
         err = db.QueryRow(`
                 SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
                 FROM forms
-                WHERE id = $1 AND is_active = true
+                WHERE id = ? AND is_active = true
         `, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl,
+                &form.ID, &titleJSON, &descriptionJSON, &fieldsJSON, &submitButtonTextJSON, &heroImageUrl,
                 &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
+
+        if err == sql.ErrNoRows {
+                http.Error(w, "Form not found", http.StatusNotFound)
+                return
+        } else if err != nil {
+                log.Printf("Error fetching form: %v", err)
+                http.Error(w, "Error fetching form", http.StatusInternalServerError)
+                return
+        }
+        
+        // Unmarshal JSON fields
+        if err := json.Unmarshal(titleJSON, &form.Title); err != nil {
+                log.Printf("Error unmarshaling title: %v", err)
+                http.Error(w, "Error parsing title", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(descriptionJSON, &form.Description); err != nil {
+                log.Printf("Error unmarshaling description: %v", err)
+                http.Error(w, "Error parsing description", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(submitButtonTextJSON, &form.SubmitButtonText); err != nil {
+                log.Printf("Error unmarshaling submitButtonText: %v", err)
+                http.Error(w, "Error parsing submitButtonText", http.StatusInternalServerError)
+                return
+        }
         
         // Handle NULL hero_image_url
         if heroImageUrl.Valid {
                 form.HeroImageUrl = heroImageUrl.String
         } else {
                 form.HeroImageUrl = ""
-        }
-
-        if err == sql.ErrNoRows {
-                http.Error(w, "Form not found", http.StatusNotFound)
-                return
-        } else if err != nil {
-                http.Error(w, "Error fetching form", http.StatusInternalServerError)
-                return
         }
 
         if err := json.Unmarshal(fieldsJSON, &form.Fields); err != nil {
@@ -320,6 +456,7 @@ func submitFormHandler(w http.ResponseWriter, r *http.Request) {
                 FormID       int                    `json:"formId"`
                 PhoneNumber  string                 `json:"phoneNumber"`
                 ResponseData map[string]interface{} `json:"responseData"`
+                Language     string                 `json:"language"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&submission); err != nil {
@@ -332,32 +469,52 @@ func submitFormHandler(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
+        // Default to English if language not specified
+        if submission.Language == "" {
+                submission.Language = "en"
+        }
+
         responseDataJSON, err := json.Marshal(submission.ResponseData)
         if err != nil {
                 http.Error(w, "Error encoding response data", http.StatusInternalServerError)
                 return
         }
 
-        var response FormResponse
-        err = db.QueryRow(`
-                INSERT INTO form_responses (form_id, phone_number, response_data, submitted_at)
-                VALUES ($1, $2, $3, NOW())
-                RETURNING id, form_id, phone_number, response_data, submitted_at
-        `, submission.FormID, submission.PhoneNumber, responseDataJSON).Scan(
-                &response.ID, &response.FormID, &response.PhoneNumber,
-                &responseDataJSON, &response.SubmittedAt,
-        )
-
+        // Insert response (MySQL compatible) with language support
+        result, err := db.Exec(`
+                INSERT INTO form_responses (form_id, phone_number, response_data, language, submitted_at)
+                VALUES (?, ?, ?, ?, NOW())
+        `, submission.FormID, submission.PhoneNumber, responseDataJSON, submission.Language)
         if err != nil {
+                log.Printf("Error submitting form: %v", err)
                 http.Error(w, "Error submitting form", http.StatusInternalServerError)
                 return
         }
-
-        if err := json.Unmarshal(responseDataJSON, &response.ResponseData); err != nil {
+        insertedID, err := result.LastInsertId()
+        if err != nil {
+                log.Printf("Error getting inserted ID: %v", err)
+                http.Error(w, "Error getting inserted ID", http.StatusInternalServerError)
+                return
+        }
+        // Fetch the inserted row
+        var response FormResponse
+        var responseDataJSONResult []byte
+        err = db.QueryRow(`
+                SELECT id, form_id, phone_number, response_data, submitted_at
+                FROM form_responses WHERE id = ?
+        `, insertedID).Scan(
+                &response.ID, &response.FormID, &response.PhoneNumber, &responseDataJSONResult, &response.SubmittedAt,
+        )
+        if err != nil {
+                log.Printf("Error fetching submitted response: %v", err)
+                http.Error(w, "Error fetching submitted response", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(responseDataJSONResult, &response.ResponseData); err != nil {
+                log.Printf("Error parsing response data: %v", err)
                 http.Error(w, "Error parsing response data", http.StatusInternalServerError)
                 return
         }
-
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(response)
 }
@@ -378,11 +535,11 @@ func updateFormHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         var formData struct {
-                Title            string      `json:"title"`
-                Description      string      `json:"description"`
-                Fields           []FormField `json:"fields"`
-                SubmitButtonText string      `json:"submitButtonText"`
-                HeroImageUrl     string      `json:"heroImageUrl"`
+                Title            MultiLanguageText `json:"title"`
+                Description      MultiLanguageText `json:"description"`
+                Fields           []FormField       `json:"fields"`
+                SubmitButtonText MultiLanguageText `json:"submitButtonText"`
+                HeroImageUrl     string            `json:"heroImageUrl"`
         }
 
         if err := json.NewDecoder(r.Body).Decode(&formData); err != nil {
@@ -390,44 +547,83 @@ func updateFormHandler(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
+        // Marshal MultiLanguageText fields as JSON
+        titleJSON, err := json.Marshal(formData.Title)
+        if err != nil {
+                http.Error(w, "Error encoding title", http.StatusInternalServerError)
+                return
+        }
+        descriptionJSON, err := json.Marshal(formData.Description)
+        if err != nil {
+                http.Error(w, "Error encoding description", http.StatusInternalServerError)
+                return
+        }
+        submitButtonTextJSON, err := json.Marshal(formData.SubmitButtonText)
+        if err != nil {
+                http.Error(w, "Error encoding submit button text", http.StatusInternalServerError)
+                return
+        }
         fieldsJSON, err := json.Marshal(formData.Fields)
         if err != nil {
                 http.Error(w, "Error encoding fields", http.StatusInternalServerError)
                 return
         }
 
+        // Update form (MySQL compatible)
+        _, err = db.Exec(`
+                UPDATE forms 
+                SET title = ?, description = ?, fields = ?, submit_button_text = ?, hero_image_url = ?, updated_at = NOW()
+                WHERE id = ? AND is_active = true
+        `, titleJSON, descriptionJSON, fieldsJSON, submitButtonTextJSON, formData.HeroImageUrl, formID)
+        if err != nil {
+                log.Printf("Error updating form: %v", err)
+                http.Error(w, "Error updating form", http.StatusInternalServerError)
+                return
+        }
+        // Fetch the updated row
         var form Form
         var heroImageUrl sql.NullString
+        var fieldsJSONResult []byte
+        var titleJSONResult, descriptionJSONResult, submitButtonTextJSONResult []byte
         err = db.QueryRow(`
-                UPDATE forms 
-                SET title = $1, description = $2, fields = $3, submit_button_text = $4, hero_image_url = $5, updated_at = NOW()
-                WHERE id = $6 AND is_active = true
-                RETURNING id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
-        `, formData.Title, formData.Description, fieldsJSON, formData.SubmitButtonText, formData.HeroImageUrl, formID).Scan(
-                &form.ID, &form.Title, &form.Description, &fieldsJSON, &form.SubmitButtonText, &heroImageUrl, &form.IsActive,
-                &form.CreatedAt, &form.UpdatedAt,
+                SELECT id, title, description, fields, submit_button_text, hero_image_url, is_active, created_at, updated_at
+                FROM forms WHERE id = ?
+        `, formID).Scan(
+                &form.ID, &titleJSONResult, &descriptionJSONResult, &fieldsJSONResult, &submitButtonTextJSONResult, &heroImageUrl, &form.IsActive, &form.CreatedAt, &form.UpdatedAt,
         )
+        if err != nil {
+                log.Printf("Error fetching updated form: %v", err)
+                http.Error(w, "Error fetching updated form", http.StatusInternalServerError)
+                return
+        }
         
-        // Handle NULL hero_image_url
+        // Unmarshal JSON fields
+        if err := json.Unmarshal(titleJSONResult, &form.Title); err != nil {
+                log.Printf("Error unmarshaling title: %v", err)
+                http.Error(w, "Error parsing title", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(descriptionJSONResult, &form.Description); err != nil {
+                log.Printf("Error unmarshaling description: %v", err)
+                http.Error(w, "Error parsing description", http.StatusInternalServerError)
+                return
+        }
+        if err := json.Unmarshal(submitButtonTextJSONResult, &form.SubmitButtonText); err != nil {
+                log.Printf("Error unmarshaling submitButtonText: %v", err)
+                http.Error(w, "Error parsing submitButtonText", http.StatusInternalServerError)
+                return
+        }
+        
         if heroImageUrl.Valid {
                 form.HeroImageUrl = heroImageUrl.String
         } else {
                 form.HeroImageUrl = ""
         }
-
-        if err == sql.ErrNoRows {
-                http.Error(w, "Form not found", http.StatusNotFound)
-                return
-        } else if err != nil {
-                http.Error(w, "Error updating form", http.StatusInternalServerError)
-                return
-        }
-
-        if err := json.Unmarshal(fieldsJSON, &form.Fields); err != nil {
+        if err := json.Unmarshal(fieldsJSONResult, &form.Fields); err != nil {
+                log.Printf("Error parsing fields: %v", err)
                 http.Error(w, "Error parsing fields", http.StatusInternalServerError)
                 return
         }
-
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(form)
 }
@@ -451,7 +647,7 @@ func deleteFormHandler(w http.ResponseWriter, r *http.Request) {
         result, err := db.Exec(`
                 UPDATE forms 
                 SET is_active = false, updated_at = NOW()
-                WHERE id = $1 AND is_active = true
+                WHERE id = ? AND is_active = true
         `, formID)
 
         if err != nil {
@@ -499,7 +695,7 @@ func getFormResponsesHandler(w http.ResponseWriter, r *http.Request) {
         rows, err := db.Query(`
                 SELECT id, form_id, phone_number, response_data, submitted_at
                 FROM form_responses
-                WHERE form_id = $1
+                WHERE form_id = ?
                 ORDER BY submitted_at DESC
         `, formID)
         if err != nil {
@@ -532,6 +728,142 @@ func getFormResponsesHandler(w http.ResponseWriter, r *http.Request) {
 
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(responses)
+}
+
+// migrateHeroImageHandler migrates the hero_image_url column from VARCHAR(512) to TEXT
+func migrateHeroImageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Execute the ALTER TABLE statement
+	_, err := db.Exec("ALTER TABLE forms MODIFY COLUMN hero_image_url TEXT")
+	if err != nil {
+		log.Printf("Error migrating hero_image_url column: %v", err)
+		http.Error(w, "Migration failed", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully migrated hero_image_url column to TEXT")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
+		"message": "hero_image_url column migrated to TEXT",
+	})
+}
+
+// migrateMultiLanguageHandler migrates forms to support multi-language content
+func migrateMultiLanguageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Add language column to form_responses table
+	_, err := db.Exec("ALTER TABLE form_responses ADD COLUMN IF NOT EXISTS language VARCHAR(2) DEFAULT 'en'")
+	if err != nil {
+		log.Printf("Error adding language column to form_responses: %v", err)
+		http.Error(w, "Migration failed", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully migrated database for multi-language support")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Multi-language migration completed successfully",
+	})
+}
+
+// Enhanced migration: log every migrated field, count total fields migrated, handle nested fields, log what it changes
+func migrateFieldsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query("SELECT id, fields FROM forms")
+	if err != nil {
+		log.Printf("Error selecting forms for migration: %v", err)
+		http.Error(w, "Error selecting forms", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	updatedForms := 0
+	updatedFields := 0
+	for rows.Next() {
+		var formID int
+		var fieldsJSON []byte
+		if err := rows.Scan(&formID, &fieldsJSON); err != nil {
+			log.Printf("Error scanning form for migration: %v", err)
+			continue
+		}
+
+		var fields []map[string]interface{}
+		if err := json.Unmarshal(fieldsJSON, &fields); err != nil {
+			log.Printf("Error unmarshaling fields for migration (form %d): %v", formID, err)
+			continue
+		}
+
+		changed := false
+		for i, field := range fields {
+			// Migrate label
+			if label, ok := field["label"].(string); ok {
+				log.Printf("Migrating label for form %d, field %d: %s", formID, i, label)
+				field["label"] = map[string]string{"en": label, "ar": ""}
+				changed = true
+				updatedFields++
+			}
+			// Migrate placeholder
+			if placeholder, ok := field["placeholder"].(string); ok {
+				log.Printf("Migrating placeholder for form %d, field %d: %s", formID, i, placeholder)
+				field["placeholder"] = map[string]string{"en": placeholder, "ar": ""}
+				changed = true
+				updatedFields++
+			}
+			// Migrate options (array of strings)
+			if options, ok := field["options"].([]interface{}); ok && len(options) > 0 {
+				allStrings := true
+				for _, opt := range options {
+					if _, ok := opt.(string); !ok {
+						allStrings = false
+						break
+					}
+				}
+				if allStrings {
+					log.Printf("Migrating options for form %d, field %d", formID, i)
+					newOpts := make([]map[string]string, len(options))
+					for j, opt := range options {
+						newOpts[j] = map[string]string{"en": opt.(string), "ar": ""}
+						updatedFields++
+					}
+					field["options"] = newOpts
+					changed = true
+				}
+			}
+		}
+
+		if changed {
+			newFieldsJSON, err := json.Marshal(fields)
+			if err != nil {
+				log.Printf("Error marshaling migrated fields for form %d: %v", formID, err)
+				continue
+			}
+			_, err = db.Exec("UPDATE forms SET fields = ? WHERE id = ?", newFieldsJSON, formID)
+			if err != nil {
+				log.Printf("Error updating migrated fields for form %d: %v", formID, err)
+				continue
+			}
+			updatedForms++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"migrated_forms": updatedForms, "migrated_fields": updatedFields})
 }
 
 // Route handler
@@ -573,12 +905,18 @@ func setupRoutes() {
         })
 
         http.HandleFunc("/api/submit", submitFormHandler)
+        http.HandleFunc("/migrate-hero-image", migrateHeroImageHandler)
+        http.HandleFunc("/migrate-multi-language", migrateMultiLanguageHandler)
+        http.HandleFunc("/migrate-fields", migrateFieldsHandler)
 }
 
 // main is the entry point of the Dynamic Form Creator API
 func main() {
         fmt.Println("Dynamic Form Creator API")
         fmt.Println("========================")
+
+        // Load .env from project root
+        _ = godotenv.Load(filepath.Join("..", ".env"))
 
         // Initialize database
         initDB()
@@ -588,7 +926,10 @@ func main() {
         setupRoutes()
 
         // Get port from environment variable, default to 5000 for Replit compatibility
-        port := os.Getenv("PORT")
+        port := os.Getenv("SERVER_PORT")
+        if port == "" {
+                port = os.Getenv("PORT")
+        }
         if port == "" {
                 port = "5000"
         }

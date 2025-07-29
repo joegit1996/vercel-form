@@ -27,15 +27,15 @@ const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
     contentClassName,
     arrowClassName,
     ...props
-  }, ref) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+  }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
     const [isVisible, setIsVisible] = React.useState(false);
     const [isAnimating, setIsAnimating] = React.useState(false);
     const [position, setPosition] = React.useState({ x: 0, y: 0 });
     
     const triggerRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
-    const timeoutRef = React.useRef<NodeJS.Timeout>();
-    const skipTimeoutRef = React.useRef<NodeJS.Timeout>();
+    const timeoutRef = React.useRef<number>();
+    const skipTimeoutRef = React.useRef<number>();
     const lastHideTime = React.useRef<number>(0);
 
     const calculatePosition = React.useCallback(() => {

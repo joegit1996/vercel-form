@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button';
-import { apiService, PaginatedResponse } from '../services/api';
-import { Form, FormResponse } from '../types/form';
+import { apiService } from '../services/api';
+import { Form, MultiLanguageText } from '../types/form';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -12,10 +12,10 @@ export const Dashboard: React.FC = () => {
   const [deletingFormId, setDeletingFormId] = useState<number | null>(null);
   
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage] = useState(1);
   const [pageSize] = useState(5);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
+  const [, setTotalPages] = useState(0);
+  const [, setTotalCount] = useState(0);
 
   useEffect(() => {
     loadForms();
@@ -83,6 +83,11 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const getText = (text: string | MultiLanguageText): string => {
+    if (typeof text === 'string') return text;
+    return text.en || '';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -99,6 +104,11 @@ export const Dashboard: React.FC = () => {
       <div className="max-w-6xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <img 
+            src="/4sale-logo.png" 
+            alt="4Sale" 
+            className="h-16 mx-auto mb-6"
+          />
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Form Dashboard</h1>
           <p className="text-gray-600 text-lg mb-8">Manage your forms and view submissions</p>
           
@@ -150,9 +160,9 @@ export const Dashboard: React.FC = () => {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{form.title}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{getText(form.title)}</h3>
                       {form.description && (
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{form.description}</p>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{getText(form.description)}</p>
                       )}
                     </div>
                     <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center ml-3">

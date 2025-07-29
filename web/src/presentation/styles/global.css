@@ -46,3 +46,9 @@
     font-weight: 700;
   }
 }
+
+/* Utility class to force RTL direction and right alignment */
+.force-rtl {
+  direction: rtl !important;
+  text-align: right !important;
+}

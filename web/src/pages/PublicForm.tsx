@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Form, FormField, FormSubmission } from '../types/form';
+import { Form, FormField, FormSubmission, MultiLanguageText } from '../types/form';
 import { Button } from '../presentation/components/ui/core/Button';
 
 export const PublicForm: React.FC = () => {
-  const { formId } = useParams<{ formId: string }>();
+  const { formId, language } = useParams<{ formId: string; language: 'ar' | 'en' }>();
   const [form, setForm] = useState<Form | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,6 +13,27 @@ export const PublicForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formData, setFormData] = useState<Record<string, any>>({});
+
+  // Default to English if no language specified
+  const currentLanguage = language || 'en';
+  const isRTL = currentLanguage === 'ar';
+
+  // Helper function to get text in current language - FIXED
+  const getText = (multiLangText: MultiLanguageText | string): string => {
+    // Handle backward compatibility with old single-language strings
+    if (typeof multiLangText === 'string') {
+      return multiLangText;
+    }
+    // Handle new multi-language objects
+    return multiLangText?.[currentLanguage] || multiLangText?.en || '';
+  };
+
+  // Labels for phone number field in both languages
+  const phoneLabel = currentLanguage === 'ar' ? 'رقم الهاتف' : 'Phone Number';
+  const phonePlaceholder = currentLanguage === 'ar' ? '+965 9000 0000' : '+965 9000 0000';
+  const submitButtonText = currentLanguage === 'ar' ? 'إرسال' : 'Submit';
+  const loadingText = currentLanguage === 'ar' ? 'جاري التحميل...' : 'Loading form...';
+  const errorNotFound = currentLanguage === 'ar' ? 'النموذج غير موجود أو غير متاح' : 'Form not found or unavailable';
 
   useEffect(() => {
     if (formId) {
@@ -26,7 +47,7 @@ export const PublicForm: React.FC = () => {
       const formData = await apiService.getForm(id);
       setForm(formData);
     } catch (err) {
-      setError('Form not found or unavailable');
+      setError(errorNotFound);
     } finally {
       setIsLoading(false);
     }
@@ -41,7 +62,7 @@ export const PublicForm: React.FC = () => {
 
   const validateForm = (): boolean => {
     if (!phoneNumber.trim()) {
-      setError('Phone number is required');
+      setError(currentLanguage === 'ar' ? 'رقم الهاتف مطلوب' : 'Phone number is required');
       return false;
     }
 
@@ -49,7 +70,8 @@ export const PublicForm: React.FC = () => {
 
     for (const field of form.fields) {
       if (field.required && (!formData[field.id] || formData[field.id] === '')) {
-        setError(`${field.label} is required`);
+        const fieldLabel = getText(field.label);
+        setError(currentLanguage === 'ar' ? `${fieldLabel} مطلوب` : `${fieldLabel} is required`);
         return false;
       }
     }
@@ -66,180 +88,191 @@ export const PublicForm: React.FC = () => {
       const submission: FormSubmission = {
         formId: form.id,
         phoneNumber: phoneNumber.trim(),
-        responseData: formData
+        responseData: formData,
+        language: currentLanguage
       };
 
       await apiService.submitForm(submission);
       setIsSubmitted(true);
     } catch (err) {
-      setError('Failed to submit form. Please try again.');
+      setError(currentLanguage === 'ar' ? 'فشل في إرسال النموذج. حاول مرة أخرى.' : 'Failed to submit form. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const renderField = (field: FormField) => {
-    const baseClasses = "w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-500";
+    // const fieldLabel = getText(field.label);
+    const fieldPlaceholder = field.placeholder ? getText(field.placeholder) : '';
     
+    const baseClasses = `w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${isRTL ? 'text-right' : 'text-left'}`;
+    const rtlClass = isRTL ? 'force-rtl' : '';
+
     switch (field.type) {
       case 'text':
       case 'email':
       case 'password':
+      case 'number':
         return (
           <input
             type={field.type}
             value={formData[field.id] || ''}
             onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            placeholder={field.placeholder}
-            className={baseClasses}
+            className={`${baseClasses} ${rtlClass}`}
+            placeholder={fieldPlaceholder}
             required={field.required}
+            dir={isRTL ? 'rtl' : 'ltr'}
+            style={isRTL ? { textAlign: 'right' } : {}}
           />
         );
-        
+
       case 'textarea':
         return (
           <textarea
             value={formData[field.id] || ''}
             onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            placeholder={field.placeholder}
-            className={`${baseClasses} min-h-24 resize-y`}
+            className={`${baseClasses} min-h-24 resize-y ${rtlClass}`}
+            placeholder={fieldPlaceholder}
             required={field.required}
             rows={4}
+            dir={isRTL ? 'rtl' : 'ltr'}
+            style={isRTL ? { textAlign: 'right' } : {}}
           />
         );
-        
-      case 'number':
-        return (
-          <input
-            type="number"
-            value={formData[field.id] || ''}
-            onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            placeholder={field.placeholder}
-            className={baseClasses}
-            required={field.required}
-            min={field.validation?.min}
-            max={field.validation?.max}
-          />
-        );
-        
-      case 'date':
-        return (
-          <input
-            type="date"
-            value={formData[field.id] || ''}
-            onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            className={baseClasses}
-            required={field.required}
-          />
-        );
-        
-      case 'time':
-        return (
-          <input
-            type="time"
-            value={formData[field.id] || ''}
-            onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            className={baseClasses}
-            required={field.required}
-          />
-        );
-        
+
       case 'select':
         return (
           <select
             value={formData[field.id] || ''}
             onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            className={baseClasses}
+            className={`${baseClasses} ${rtlClass}`}
             required={field.required}
+            dir={isRTL ? 'rtl' : 'ltr'}
+            style={isRTL ? { textAlign: 'right' } : {}}
           >
-            <option value="">{field.placeholder || 'Select an option'}</option>
+            <option value="">{fieldPlaceholder || (currentLanguage === 'ar' ? 'اختر خيار' : 'Select an option')}</option>
             {field.options?.map((option, index) => (
-              <option key={index} value={option}>
-                {option}
+              <option key={index} value={getText(option)}>
+                {getText(option)}
               </option>
             ))}
           </select>
         );
-        
+
       case 'radio':
         return (
           <div className="space-y-3">
             {field.options?.map((option, index) => (
-              <label key={index} className="flex items-center">
+              <label key={index} className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <input
                   type="radio"
                   name={field.id}
-                  value={option}
-                  checked={formData[field.id] === option}
+                  value={getText(option)}
+                  checked={formData[field.id] === getText(option)}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 ${isRTL ? 'ml-3' : 'mr-3'}`}
                   required={field.required}
                 />
-                <span className="ml-3 text-gray-700">{option}</span>
+                <span className="text-gray-700">{getText(option)}</span>
               </label>
             ))}
           </div>
         );
-        
+
       case 'checkbox':
         return (
           <div className="space-y-3">
             {field.options?.map((option, index) => (
-              <label key={index} className="flex items-center">
+              <label key={index} className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <input
                   type="checkbox"
-                  value={option}
-                  checked={(formData[field.id] || []).includes(option)}
+                  value={getText(option)}
+                  checked={(formData[field.id] || []).includes(getText(option))}
                   onChange={(e) => {
                     const currentValues = formData[field.id] || [];
+                    const optionValue = getText(option);
                     if (e.target.checked) {
-                      handleFieldChange(field.id, [...currentValues, option]);
+                      handleFieldChange(field.id, [...currentValues, optionValue]);
                     } else {
-                      handleFieldChange(field.id, currentValues.filter((v: string) => v !== option));
+                      handleFieldChange(field.id, currentValues.filter((v: string) => v !== optionValue));
                     }
                   }}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded ${isRTL ? 'ml-3' : 'mr-3'}`}
                 />
-                <span className="ml-3 text-gray-700">{option}</span>
+                <span className="text-gray-700">{getText(option)}</span>
               </label>
             ))}
           </div>
         );
-        
+
       case 'file':
         return (
           <input
             type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              handleFieldChange(field.id, file?.name || '');
-            }}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            required={field.required}
-          />
-        );
-        
-      default:
-        return (
-          <input
-            type="text"
-            value={formData[field.id] || ''}
-            onChange={(e) => handleFieldChange(field.id, e.target.value)}
-            placeholder={field.placeholder}
+            onChange={(e) => handleFieldChange(field.id, e.target.files?.[0])}
             className={baseClasses}
             required={field.required}
           />
         );
+
+      case 'date':
+      case 'time':
+        return (
+          <input
+            type={field.type}
+            value={formData[field.id] || ''}
+            onChange={(e) => handleFieldChange(field.id, e.target.value)}
+            className={baseClasses}
+            required={field.required}
+          />
+        );
+
+      default:
+        return null;
     }
   };
 
+  if (isSubmitted) {
+    return (
+      <div className={`min-h-screen bg-gray-50 py-12 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+        <div className="max-w-lg mx-auto px-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {currentLanguage === 'ar' ? 'شكراً لك!' : 'Thank You!'}
+            </h2>
+            <p className="text-gray-600 text-lg">
+              {currentLanguage === 'ar' 
+                ? 'تم إرسال ردك بنجاح. سيتواصل معك فريقنا قريباً.'
+                : 'Your response has been submitted successfully. Our team will contact you soon.'}
+            </p>
+            
+            {/* Powered by 4Sale */}
+                      <div className="mt-8 pt-6 border-t border-gray-200">
+            <p className="text-sm text-gray-500 mb-2">
+              {currentLanguage === 'ar' ? 'مدعوم من' : 'Powered by'}
+            </p>
+            <div className="flex items-center justify-center">
+              <img src="/4sale-logo.png" alt="4Sale" className="h-24" />
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className={`min-h-screen bg-gray-50 py-12 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-lg mx-auto px-6">
         {isLoading && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading form...</p>
+            <p className="text-gray-600">{loadingText}</p>
           </div>
         )}
 
@@ -254,102 +287,89 @@ export const PublicForm: React.FC = () => {
           </div>
         )}
 
-        {isSubmitted && !error && (
-          <div className="bg-white rounded-xl shadow-sm border border-green-200 p-12 text-center">
-            <div className="h-12 w-12 mx-auto mb-6 text-green-600 flex items-center justify-center">
-              <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Thank you!</h2>
-            <p className="text-gray-600 mb-8">Your form has been submitted successfully.</p>
-            
-            {/* 4Sale Branding */}
-            <div className="text-center mt-8 pt-6 border-t border-gray-100">
-              <img 
-                src="/4sale-logo.png" 
-                alt="4Sale" 
-                className="h-20 mx-auto mb-3"
-              />
-              <p className="text-sm text-gray-500">Powered by 4Sale</p>
-            </div>
-          </div>
-        )}
+        {(() => {
+          if (!form || isSubmitted) return null;
+          
+          return (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Hero Banner */}
+              {form.heroImageUrl && (
+                <div className="w-full h-48 bg-gray-200 overflow-hidden">
+                  <img 
+                    src={form.heroImageUrl} 
+                    alt="Form banner" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.parentElement!.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              
+              <div className="p-8">
+                <div className="text-center mb-8">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3">{getText(form.title)}</h1>
+                  {form.description && (
+                    <p className="text-gray-600 leading-relaxed">{getText(form.description)}</p>
+                  )}
+                </div>
 
-        {form && !isSubmitted && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {/* Hero Banner */}
-            {form.heroImageUrl && (
-              <div className="w-full h-48 bg-gray-200 overflow-hidden">
-                <img 
-                  src={form.heroImageUrl} 
-                  alt="Form banner" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.parentElement!.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            <div className="p-8">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-3">{form.title}</h1>
-                {form.description && (
-                  <p className="text-gray-600 leading-relaxed">{form.description}</p>
-                )}
-              </div>
-
-            {/* Phone Number Field - Always Required */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-500"
-                placeholder="+1 (555) 123-4567"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">Required for our agent to contact you</p>
-            </div>
-
-            {/* Dynamic Form Fields */}
-            {form.fields.map((field) => (
-              <div key={field.id} className="mb-6">
+              {/* Phone Number Field - Always Required */}
+              <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                  {phoneLabel} *
                 </label>
-                {renderField(field)}
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-500 ${isRTL ? 'text-right' : 'text-left'}`}
+                  placeholder={phonePlaceholder}
+                  required
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {currentLanguage === 'ar' 
+                    ? 'مطلوب للتواصل معك من قبل فريقنا'
+                    : 'Required for our agent to contact you'}
+                </p>
               </div>
-            ))}
 
-            <div className="pt-4">
+              {/* Dynamic Form Fields */}
+              <div className="space-y-6 mb-8">
+                {form.fields.map((field) => (
+                  <div key={field.id}>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      {getText(field.label)}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {renderField(field)}
+                  </div>
+                ))}
+              </div>
+
+              {/* Submit Button */}
               <Button
                 onClick={submitForm}
                 loading={isSubmitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-medium border-0 transition-colors"
-                size="lg"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 py-4 text-lg font-semibold rounded-xl"
               >
-                {form.submitButtonText || 'Submit'}
+                {form.submitButtonText ? getText(form.submitButtonText) : submitButtonText}
               </Button>
-            </div>
 
-            {/* 4Sale Branding */}
-            <div className="text-center mt-8 pt-6 border-t border-gray-100">
-              <img 
-                src="/4sale-logo.png" 
-                alt="4Sale" 
-                className="h-20 mx-auto mb-3"
-              />
-              <p className="text-sm text-gray-500">Powered by 4Sale</p>
-            </div>
+              {/* Powered by 4Sale */}
+              <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p className="text-sm text-gray-500 mb-2">
+                  {currentLanguage === 'ar' ? 'مدعوم من' : 'Powered by'}
+                </p>
+                <div className="flex items-center justify-center">
+                  <img src="/4sale-logo.png" alt="4Sale" className="h-24" />
+                </div>
+              </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
   }, ref) => {
     const [isVisible, setIsVisible] = React.useState(true);
     const [isExiting, setIsExiting] = React.useState(false);
-    const timeoutRef = React.useRef<NodeJS.Timeout>();
+    const timeoutRef = React.useRef<number>();
 
     React.useEffect(() => {
       if (duration && duration > 0) {

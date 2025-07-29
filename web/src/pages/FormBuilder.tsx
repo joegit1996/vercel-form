@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../presentation/components/ui/core/Button';
 import { apiService } from '../services/api';
-import { FormField, FieldType, FormDefinition } from '../types/form';
+import { FormField, FieldType, FormDefinition, MultiLanguageText } from '../types/form';
+import { DualLanguageField } from '../presentation/components/DualLanguageField';
+import { MultiLanguageOptions } from '../presentation/components/MultiLanguageOptions';
 
 const FIELD_TYPES: { value: FieldType; label: string; description: string }[] = [
   { value: 'text', label: 'Text', description: 'Single line text input' },
@@ -18,21 +20,65 @@ const FIELD_TYPES: { value: FieldType; label: string; description: string }[] = 
   { value: 'file', label: 'File', description: 'File upload' }
 ];
 
+// Helper to ensure MultiLanguageText
+const toMultiLanguage = (val: string | MultiLanguageText | undefined): MultiLanguageText => {
+  if (!val) return { en: '', ar: '' };
+  if (typeof val === 'string') return { en: val, ar: '' };
+  return val;
+};
+
+// Helper to parse multi-language fields and fix double-stringified JSON
+function parseMultiLangField(field: any): MultiLanguageText {
+  // If the field is a string, try to parse it as JSON, else return as {en: field, ar: ""}
+  if (typeof field === "string") {
+    try {
+      const parsed = JSON.parse(field);
+      if (typeof parsed === "object" && parsed !== null && ("en" in parsed || "ar" in parsed)) {
+        return parsed;
+      }
+      // fallback: treat as English string
+      return { en: field, ar: "" };
+    } catch {
+      return { en: field, ar: "" };
+    }
+  }
+  // If the field is an object, but en/ar are stringified, parse them
+  if (typeof field === "object" && field !== null) {
+    return {
+      en: typeof field.en === "string" && field.en.trim().startsWith("{") ? JSON.parse(field.en).en || field.en : field.en || "",
+      ar: typeof field.ar === "string" && field.ar.trim().startsWith("{") ? JSON.parse(field.ar).ar || field.ar : field.ar || "",
+    };
+  }
+  return { en: "", ar: "" };
+}
+
+// Helper to sanitize multi-language fields before saving
+function sanitizeMultiLangField(field: any): MultiLanguageText {
+  if (typeof field === "object" && field !== null) {
+    return {
+      en: typeof field.en === "string" && field.en.trim().startsWith("{") ? JSON.parse(field.en).en || "" : field.en || "",
+      ar: typeof field.ar === "string" && field.ar.trim().startsWith("{") ? JSON.parse(field.ar).ar || "" : field.ar || "",
+    };
+  }
+  if (typeof field === "string") {
+    return { en: field, ar: "" };
+  }
+  return { en: "", ar: "" };
+}
+
 export const FormBuilder: React.FC = () => {
   const navigate = useNavigate();
   const { formId } = useParams<{ formId: string }>();
   const isEditing = !!formId;
   
-  const [formTitle, setFormTitle] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [submitButtonText, setSubmitButtonText] = useState('');
+  const [formTitle, setFormTitle] = useState<MultiLanguageText>({ en: '', ar: '' });
+  const [formDescription, setFormDescription] = useState<MultiLanguageText>({ en: '', ar: '' });
+  const [submitButtonText, setSubmitButtonText] = useState<MultiLanguageText>({ en: '', ar: '' });
   const [heroImageUrl, setHeroImageUrl] = useState('');
-  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [fields, setFields] = useState<FormField[]>([]);
   const [editingField, setEditingField] = useState<FormField | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,19 +89,24 @@ export const FormBuilder: React.FC = () => {
 
   const loadForm = async (id: number) => {
     try {
-      setIsLoading(true);
       setError(null);
       const form = await apiService.getForm(id);
-      setFormTitle(form.title);
-      setFormDescription(form.description || '');
-      setSubmitButtonText(form.submitButtonText || '');
+      setFormTitle(parseMultiLangField(form.title));
+      setFormDescription(parseMultiLangField(form.description));
+      setSubmitButtonText(parseMultiLangField(form.submitButtonText));
       setHeroImageUrl(form.heroImageUrl || '');
-      setFields(form.fields);
+      // Ensure all fields use MultiLanguageText for label/placeholder/options
+      setFields(form.fields.map(f => ({
+        ...f,
+        label: toMultiLanguage(f.label),
+        placeholder: toMultiLanguage(f.placeholder),
+        options: f.options ? f.options.map(toMultiLanguage) : [],
+      })));
     } catch (err) {
       setError('Failed to load form');
       console.error('Error loading form:', err);
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false); // Removed as per edit hint
     }
   };
 
@@ -67,10 +118,12 @@ export const FormBuilder: React.FC = () => {
     const newField: FormField = {
       id: generateFieldId(),
       type,
-      label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
-      placeholder: '',
+      label: { en: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`, ar: '' },
+      placeholder: { en: '', ar: '' },
       required: false,
-      options: ['select', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2'] : undefined
+      options: ['select', 'radio', 'checkbox'].includes(type)
+        ? [{ en: 'Option 1', ar: 'خيار 1' }, { en: 'Option 2', ar: 'خيار 2' }]
+        : [],
     };
     setFields([...fields, newField]);
     setEditingField(newField);
@@ -83,7 +136,7 @@ export const FormBuilder: React.FC = () => {
 
   const removeField = (fieldId: string) => {
     setFields(fields.filter(field => field.id !== fieldId));
-    if (editingField?.id === fieldId) {
+    if (editingField && editingField.id === fieldId) {
       setEditingField(null);
     }
   };
@@ -112,7 +165,6 @@ export const FormBuilder: React.FC = () => {
       reader.onload = (e) => {
         if (e.target?.result) {
           setHeroImageUrl(e.target.result as string);
-          setHeroImageFile(file);
         }
       };
       reader.readAsDataURL(file);
@@ -131,39 +183,46 @@ export const FormBuilder: React.FC = () => {
     if (newIndex < 0 || newIndex >= fields.length) return;
 
     const newFields = [...fields];
-    [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
-    setFields(newFields);
+    // Swap only if both indices are valid
+    if (newFields[index] && newFields[newIndex]) {
+      const temp = newFields[index];
+      newFields[index] = newFields[newIndex];
+      newFields[newIndex] = temp;
+      setFields(newFields);
+    }
   };
 
   const saveForm = async () => {
-    if (!formTitle.trim()) {
-      setError('Form title is required');
+    if (!formTitle.en.trim() && !formTitle.ar.trim()) {
+      setError('Form title is required in at least one language');
       return;
     }
-
     if (fields.length === 0) {
       setError('At least one field is required');
       return;
     }
-
     try {
       setIsSubmitting(true);
       setError(null);
-
+      // When saving, sanitize all multi-language fields before sending
       const formData: FormDefinition = {
-        title: formTitle.trim(),
-        description: formDescription.trim() || undefined,
-        fields,
-        submitButtonText: submitButtonText.trim() || undefined,
-        heroImageUrl: heroImageUrl.trim() || undefined
+        title: sanitizeMultiLangField(formTitle),
+        description: sanitizeMultiLangField(formDescription),
+        submitButtonText: sanitizeMultiLangField(submitButtonText),
+        fields: fields.map(field => ({
+          ...field,
+          label: sanitizeMultiLangField(field.label),
+          placeholder: sanitizeMultiLangField(field.placeholder),
+          options: field.options ? field.options.map(sanitizeMultiLangField) : [],
+        })),
+        heroImageUrl: heroImageUrl || ''
       };
-
+      console.log('Outgoing formData (sanitized):', formData);
       if (isEditing && formId) {
         await apiService.updateForm(parseInt(formId), formData);
       } else {
         await apiService.createForm(formData);
       }
-      
       navigate('/');
     } catch (err) {
       setError(`Failed to ${isEditing ? 'update' : 'create'} form. Please try again.`);
@@ -176,76 +235,29 @@ export const FormBuilder: React.FC = () => {
     <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Field Label *
-          </label>
-          <input
-            type="text"
-            value={field.label}
-            onChange={(e) => setEditingField({ ...field, label: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-            placeholder="Enter field label"
+          <DualLanguageField
+            label="Field Label *"
+            value={toMultiLanguage(field.label)}
+            onChange={(val) => setEditingField({ ...field, label: toMultiLanguage(val) })}
+            required
           />
         </div>
-
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Placeholder Text
-          </label>
-          <input
-            type="text"
-            value={field.placeholder || ''}
-            onChange={(e) => setEditingField({ ...field, placeholder: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-            placeholder="Enter placeholder text"
+          <DualLanguageField
+            label="Placeholder Text"
+            value={toMultiLanguage(field.placeholder)}
+            onChange={(val) => setEditingField({ ...field, placeholder: toMultiLanguage(val) })}
           />
         </div>
       </div>
 
       {(['select', 'radio', 'checkbox'].includes(field.type)) && (
         <div className="mt-4">
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Options
-          </label>
-          <div className="space-y-2">
-            {(field.options || []).map((option, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  value={option}
-                  onChange={(e) => {
-                    const newOptions = [...(field.options || [])];
-                    newOptions[index] = e.target.value;
-                    setEditingField({ ...field, options: newOptions });
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  placeholder={`Option ${index + 1}`}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newOptions = field.options?.filter((_, i) => i !== index);
-                    setEditingField({ ...field, options: newOptions });
-                  }}
-                  className="text-red-600 border-red-300 hover:bg-red-50"
-                >
-                  Remove
-                </Button>
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newOptions = [...(field.options || []), ''];
-                setEditingField({ ...field, options: newOptions });
-              }}
-              className="border-gray-300 text-gray-700"
-            >
-              Add Option
-            </Button>
-          </div>
+          <MultiLanguageOptions
+            options={field.options as any || [{ en: '', ar: '' }]}
+            onChange={(opts) => setEditingField({ ...field, options: opts })}
+            label="Options"
+          />
         </div>
       )}
 
@@ -285,6 +297,11 @@ export const FormBuilder: React.FC = () => {
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <img 
+            src="/4sale-logo.png" 
+            alt="4Sale" 
+            className="h-16 mx-auto mb-6"
+          />
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             {isEditing ? 'Edit Form' : 'Create New Form'}
           </h1>
@@ -301,42 +318,22 @@ export const FormBuilder: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-6">Form Details</h2>
               
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Form Title *
-                  </label>
-                  <input
-                    type="text"
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <DualLanguageField
+                    label="Form Title *"
                     value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="Enter form title"
+                    onChange={val => setFormTitle(toMultiLanguage(val))}
+                    required
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Description
-                  </label>
-                  <textarea
+                  <DualLanguageField
+                    label="Form Description"
                     value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-24 resize-y"
-                    placeholder="Tell users what this form is for"
-                    rows={3}
+                    onChange={val => setFormDescription(toMultiLanguage(val))}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Submit Button Text
-                  </label>
-                  <input
-                    type="text"
+                  <DualLanguageField
+                    label="Submit Button Text"
                     value={submitButtonText}
-                    onChange={(e) => setSubmitButtonText(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="Submit (default)"
+                    onChange={val => setSubmitButtonText(toMultiLanguage(val))}
                   />
                 </div>
 
@@ -403,7 +400,6 @@ export const FormBuilder: React.FC = () => {
                         <button
                           onClick={() => {
                             setHeroImageUrl('');
-                            setHeroImageFile(null);
                           }}
                           className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                         >
@@ -434,7 +430,10 @@ export const FormBuilder: React.FC = () => {
                     <div key={field.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{field.label}</h3>
+                          <h3 className="font-medium text-gray-900">
+                            <span className="mr-2">🇺🇸 {field.label.en}</span>
+                            <span className="ml-2">🇸🇦 {field.label.ar}</span>
+                          </h3>
                           <p className="text-sm text-gray-500">
                             {field.type} • {field.required ? 'Required' : 'Optional'}
                           </p>
@@ -461,7 +460,7 @@ export const FormBuilder: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setEditingField(field)}
+                            onClick={() => { if (field && typeof field === 'object' && field.id) setEditingField(field); }}
                             className="border-gray-300 text-gray-700"
                           >
                             Edit
@@ -481,12 +480,12 @@ export const FormBuilder: React.FC = () => {
                 </div>
               )}
 
-              {editingField && (
+              {editingField && typeof editingField === 'object' && editingField.id ? (
                 <div className="mt-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Field</h3>
-                  {renderFieldEditor(editingField)}
+                  {renderFieldEditor(editingField as FormField)}
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Actions */}
@@ -544,11 +543,17 @@ export const FormBuilder: React.FC = () => {
                 All forms automatically include a phone number field for agent contact.
               </p>
               <Button
-                onClick={() => window.open('/form/preview', '_blank')}
+                onClick={() => {
+                  if (isEditing && formId) {
+                    window.open(`/form/${formId}`, '_blank');
+                  } else {
+                    alert('Please save the form first to preview it');
+                  }
+                }}
                 variant="outline"
                 className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
               >
-                Preview Form
+                {isEditing ? 'Preview Form' : 'Save to Preview'}
               </Button>
             </div>
           </div>

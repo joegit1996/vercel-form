@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../../../../../application/utils/cn';
 import { Button } from '../../core/Button';
 import { Badge } from '../../core/Badge';
-import { Menu, X, ChevronDown, Bell, Search, User } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 
 export interface NavigationItem {
   label: string;

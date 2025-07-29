@@ -8,7 +8,7 @@ import { Alert } from '../components/ui/feedback/Alert/Alert';
 
 export const LocalizationTestPage: React.FC = () => {
   const { t } = useTranslation();
-  const { language, direction, isRTL, changeLanguage } = useLocalization();
+  const { language, isRTL, changeLanguage } = useLocalization();
 
   const toggleLanguage = () => {
     changeLanguage(language === 'en' ? 'ar' : 'en');
@@ -36,7 +36,7 @@ export const LocalizationTestPage: React.FC = () => {
         <Card className="p-6 bg-blue-50 border-blue-200">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-4">
-              <Badge variant="primary" className="text-sm">
+              <Badge variant="default" className="text-sm">
                 {t('currentLanguage')}
               </Badge>
               <Badge variant="secondary" className="text-sm">
@@ -110,7 +110,7 @@ export const LocalizationTestPage: React.FC = () => {
 
           {/* Badge Test */}
           <div className="flex flex-wrap gap-2 mb-6">
-            <Badge variant="primary">Primary Badge</Badge>
+            <Badge variant="default">Primary Badge</Badge>
             <Badge variant="secondary">Secondary Badge</Badge>
             <Badge variant="success">Success Badge</Badge>
             <Badge variant="warning">Warning Badge</Badge>
